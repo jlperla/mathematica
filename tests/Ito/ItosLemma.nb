@@ -1,0 +1,5736 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 8.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       157,          7]
+NotebookDataLength[    154560,       5726]
+NotebookOptionsPosition[    133512,       5033]
+NotebookOutlinePosition[    135279,       5088]
+CellTagsIndexPosition[    134934,       5077]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[TextData[{
+ "A Guide to ",
+ StyleBox["ItosLemma",
+  FontFamily->"Courier New"]
+}], "Title"],
+
+Cell[TextData[{
+ "A ",
+ StyleBox["Mathematica",
+  FontSlant->"Italic"],
+ " package that implements Ito's Lemma for stochastic calculus"
+}], "Subtitle"],
+
+Cell["by Mark Fisher", "Subtitle"],
+
+Cell["Revised April 2003", "Subsubtitle"],
+
+Cell["\<\
+Financial Economist and Associate Policy Advisor
+Research Department
+Federal Reserve Bank of Atlanta
+1000 Peachtree Street, N.E.
+Atlanta, GA 30309-4470
+
+mark@markfisher.net
+
+http://www.markfisher.net/~mefisher/\
+\>", "Subsubtitle"],
+
+Cell[CellGroupData[{
+
+Cell["What is Ito's lemma?", "Section"],
+
+Cell[TextData[{
+ "An Ito process can be thought of as a stochastic differential equation \
+(SDE). Ito's lemma provides the rules for computing the Ito process of a \
+function of Ito processes. In other words, it is the formula for computing \
+stochastic derivatives. For example, given the stochastic differential \
+equation ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"d", "\[InvisibleSpace]", "x"}], " ", "=", " ", 
+    RowBox[{
+     RowBox[{"\[Mu]", " ", "d", "\[InvisibleSpace]", "t"}], " ", "+", " ", 
+     RowBox[{"\[Sigma]", " ", "d", "\[InvisibleSpace]", "B"}]}]}], 
+   TraditionalForm]]],
+ " and the (suitably smooth) function ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"f", "(", 
+    RowBox[{"x", ",", "t"}], ")"}], TraditionalForm]]],
+ ", the SDE for ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"y", "(", "t", ")"}], " ", "=", 
+    RowBox[{"f", "(", 
+     RowBox[{
+      RowBox[{"x", "(", "t", ")"}], ",", "t"}], ")"}]}], TraditionalForm]]],
+ " is ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"d", "\[InvisibleSpace]", "y"}], " ", "=", " ", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{
+         SubscriptBox["f", "t"], "(", 
+         RowBox[{"x", ",", "t"}], ")"}], " ", "+", " ", 
+        RowBox[{
+         RowBox[{
+          SubscriptBox["f", "x"], "(", 
+          RowBox[{"x", ",", "t"}], ")"}], "\[Mu]"}], " ", "+", 
+        RowBox[{
+         RowBox[{
+          SubscriptBox["f", 
+           RowBox[{"x", "\[InvisibleSpace]", "x"}]], "(", 
+          RowBox[{"x", ",", "t"}], ")"}], " ", 
+         FractionBox["1", "2"], 
+         SuperscriptBox["\[Sigma]", "2"]}]}], ")"}], "d", "\[InvisibleSpace]",
+       "t"}], " ", "+", " ", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["f", "x"], "(", 
+       RowBox[{"x", ",", "t"}], ")"}], "\[Sigma]", " ", "d", 
+      "\[InvisibleSpace]", "B"}]}]}], TraditionalForm]],
+  TextAlignment->Left,
+  TextJustification->0],
+ ". \nThis package will compute Ito's formula for arbitrary functions of an \
+arbitrary number of Ito processes with an arbitrary number of Brownians. The \
+Brownians may have an arbitrary correlation matrix.\n\nFor a reasonably \
+accessible introduction to SDEs, see Bernt \[CapitalOSlash]ksendal, ",
+ StyleBox["Stochastic Differential Equations: An Introduction with \
+Applications",
+  FontSlant->"Italic"],
+ ", Springer-Verlag (currently in its 5th edition). The latest edition of \
+\[CapitalOSlash]ksendal has a chapter of applications to finance. See also \
+Darrell Duffie, ",
+ StyleBox["Dynamic Asset Pricing Theory",
+  FontSlant->"Italic"],
+ ", Princeton University Press (currently in its 3rd edition) for many \
+applications of Ito's lemma to finance."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+A brief explanation of the code. (You don't need to read this.)\
+\>", "Subsection"],
+
+Cell[TextData[{
+ "Ito's lemma itself (as a mathematical formula) is quite simple. The main \
+programming challenge is to identify the Ito processes in the given \
+expression and determine their drifts and diffusions. Below, I discuss two \
+possible paradigms. The code in the package ",
+ StyleBox["ItosLemma.m",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " follows the second paradigm."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell["First paradigm", "Subsubsection"],
+
+Cell["\<\
+Ideally, the syntax for an Ito derivative would parallel that for an ordinary \
+derivative. For example,\
+\>", "Text"],
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  RowBox[{"expression", ",", " ", "arguments"}], "]"}]], "Input",
+ Evaluatable->False],
+
+Cell["\<\
+where the expression is to be \"differentiated\" with respect to the \
+arguments. In principle, the arguments would be the Ito processes (including \
+the time argument). However, the drifts and diffusions would still need to be \
+specified. It would be possible to use the following syntax:\
+\>", "Text"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ItoD", "[", 
+   RowBox[{
+    RowBox[{"f", "[", 
+     RowBox[{"x", ",", "t"}], "]"}], ",", " ", 
+    RowBox[{"ItoProcess", "[", 
+     RowBox[{"x", ",", 
+      SubscriptBox["\[Mu]", "x"], ",", 
+      SubscriptBox["\[Sigma]", "x"]}], "]"}], ",", " ", 
+    RowBox[{"ItoProcess", "[", 
+     RowBox[{"t", ",", "1", ",", "0"}], "]"}]}], "]"}], " "}]], "Input",
+ Evaluatable->False],
+
+Cell[TextData[{
+ "where ItoProcess[x,\[Mu],\[Sigma]] specifies that ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " is an Ito process with drift ",
+ Cell[BoxData[
+  FormBox["\[Mu]", TraditionalForm]]],
+ " and diffusion ",
+ Cell[BoxData[
+  FormBox["\[Sigma]", TraditionalForm]]],
+ " and ItoProcess[t,1,0] specifies that ",
+ Cell[BoxData[
+  FormBox["t", TraditionalForm]]],
+ " is Ito process with drift 1 and diffusion 0  (i.e., ",
+ Cell[BoxData[
+  FormBox["t", TraditionalForm]]],
+ " is time). ItoD could return an ''anonymous'' Ito process such as"
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"ItoProcess", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"0", ",", "1"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"x", ",", "t"}], "]"}], "+", 
+    RowBox[{
+     SubscriptBox["\[Mu]", "x"], " ", 
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"1", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+    RowBox[{
+     FractionBox["1", "2"], " ", 
+     SubsuperscriptBox["\[Sigma]", "x", "2"], " ", 
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"2", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"x", ",", "t"}], "]"}]}]}], ",", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "x"], " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"x", ",", "t"}], "]"}]}]}], "]"}]], "Input",
+ Evaluatable->False],
+
+Cell["\<\
+The third argument in ItoProcess could be a vector. In addition, an option to \
+ItoD could control how the correlations among the Brownian motions are \
+treated.\
+\>", "Text"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Second paradigm", "Subsubsection"],
+
+Cell[TextData[{
+ "\tThe code in ",
+ StyleBox["ItosLemma.m",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " takes a different route. Instead of passing an ItoProcess object as an \
+argument to ItoD, one declares in advance that ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " is an Ito process with given drift and diffusion. In addition, global \
+variables are used to identify time and other things. The three central \
+global variables are TimeSymbol, TimeIncrement, and BrownianIncrement. \
+Ordinarily, one would define convenient abbreviations using symbols that are \
+not otherwise in use, such as t, dt, and dB. "
+}], "Text"],
+
+Cell[TextData[{
+ "\tTo declare ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " to be an Ito process with drift ",
+ Cell[BoxData[
+  FormBox["\[Mu]", TraditionalForm]]],
+ " and diffusion ",
+ Cell[BoxData[
+  FormBox["\[Sigma]", TraditionalForm]]],
+ ", use"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", "\[Mu]", ",", "\[Sigma]"}], 
+  "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell["which stores the following rule:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"x", "[", 
+   RowBox[{"t", "+", "dt"}], "]"}], " ", "=", " ", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], " ", "+", " ", 
+   RowBox[{"\[Mu]", " ", "dt"}], " ", "+", " ", 
+   RowBox[{"\[Sigma]", " ", 
+    SubscriptBox["dB", "1"]}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}], "+", 
+  RowBox[{"x", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Note the rule will only match ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"x", "[", 
+    RowBox[{"t", "+", "dt"}], "]"}], TraditionalForm]]],
+ " and nothing else; there are no underscores on the left-hand side. "
+}], "Text"],
+
+Cell[TextData[{
+ "\tProgramming note: ItoMake allows the user to redeclare ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " as an Ito process without clearing the previous definition by constructing \
+and executing the following:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Set", " ", "@@", " ", 
+  RowBox[{"Hold", "[", 
+   RowBox[{
+    RowBox[{"x", "[", 
+     RowBox[{"t", "+", "dt"}], "]"}], ",", " ", 
+    RowBox[{
+     RowBox[{"x", "[", "t", "]"}], " ", "+", " ", 
+     RowBox[{"\[Mu]", " ", "dt"}], " ", "+", " ", 
+     RowBox[{"\[Sigma]", " ", 
+      SubscriptBox["dB", "1"]}]}]}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}], "+", 
+  RowBox[{"x", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "\tHaving declared that ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " is an Ito process via this route, we are free to use ItoD on any \
+expression containing ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ ". "
+}], "Text"],
+
+Cell["To see how ItoD works, consider the following expression:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"expr", " ", "=", " ", 
+  RowBox[{"f", "[", 
+   RowBox[{
+    RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"f", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+To identify the Ito processes in the expression, substitute t+dt for t:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dtexpr", " ", "=", " ", 
+  RowBox[{"expr", " ", "/.", " ", 
+   RowBox[{"t", "\[Rule]", 
+    RowBox[{"t", "+", "dt"}]}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"f", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"dt", " ", "\[Mu]"}], "+", 
+    RowBox[{"\[Sigma]", " ", 
+     SubscriptBox["dB", "1"]}], "+", 
+    RowBox[{"x", "[", "t", "]"}]}], ",", 
+   RowBox[{"dt", "+", "t"}]}], "]"}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+The rule matches for those symbols (and only those symbols) that have \
+previously been declared Ito processes (including time, which has been \
+declared implicitly). \
+\>", "Text"],
+
+Cell["\<\
+Now we can compute the Ito-Taylor series for the expression. We need the \
+first derivative with respect to the time increment and the first two \
+derivatives with respect to the Brownian increment:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"derivatives", "=", 
+  RowBox[{
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"D", "[", 
+       RowBox[{"dtexpr", ",", " ", "#"}], "]"}], "&"}], "/@", 
+     RowBox[{"{", 
+      RowBox[{"dt", ",", " ", 
+       SubscriptBox["dB", "1"], ",", " ", 
+       RowBox[{"{", 
+        RowBox[{
+         SubscriptBox["dB", "1"], ",", "2"}], "}"}]}], "}"}]}], ")"}], " ", "/.",
+    " ", 
+   RowBox[{
+    RowBox[{
+     SubscriptBox["dB", "1"], "|", "dt"}], " ", "\[Rule]", " ", 
+    "0"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"0", ",", "1"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+    RowBox[{"\[Mu]", " ", 
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"1", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}]}], ",", 
+   RowBox[{"\[Sigma]", " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}], ",", 
+   RowBox[{
+    SuperscriptBox["\[Sigma]", "2"], " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"2", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "With these derivatives, we construct the series using the Ito \
+\"multiplication rule\" ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    SubsuperscriptBox["dB", "1", "2"], "\[Rule]", "dt"}], TraditionalForm]]],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Collect", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"derivatives", ".", 
+     RowBox[{"{", 
+      RowBox[{"dt", ",", " ", 
+       SubscriptBox["dB", "1"], ",", 
+       RowBox[{
+        FractionBox["1", "2"], " ", 
+        SubsuperscriptBox["dB", "1", "2"]}]}], "}"}]}], " ", "/.", " ", 
+    RowBox[{
+     SubsuperscriptBox["dB", "1", "2"], "\[Rule]", "dt"}]}], ",", " ", "dt"}],
+   "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{
+     RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}]}], 
+    ")"}]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Load the package", "Section"],
+
+Cell[BoxData[{
+ RowBox[{"Off", "[", 
+  RowBox[{"General", "::", "spell"}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{"Off", "[", 
+  RowBox[{"General", "::", "spell1"}], "]"}]}], "Input"],
+
+Cell[TextData[{
+ "You should put ",
+ StyleBox["ItosLemma.m",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " in a directory in the ",
+ StyleBox["$Path",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " (or add the directory where ",
+ StyleBox["ItosLemma.m",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " is located to the ",
+ StyleBox["$Path",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ ")."
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"<<", "ItosLemma`"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "ItosLemma"}]], "Input"],
+
+Cell[BoxData["\<\"ItosLemma.m is a package that implements Ito's Lemma. The \
+package uses six global symbols: TimeSymbol, TimeIncrement, \
+BrownianIncrement, CorrelationSymbol, DriftSymbol, and DiffusionSymbol. They \
+can be defined in terms of more convenient symbols.\\n Example:\\n Clear[t, \
+dt, dB, \[Rho], \[Mu], \[Sigma]];\\n {TimeSymbol, TimeIncrement, \
+BrownianIncrement, CorrelationSymbol, DriftSymbol, DiffusionSymbol} = {t, dt, \
+dB, \[Rho], \[Mu], \[Sigma]}\"\>"], "Print",
+ CellTags->"Info3260169726-5396987"]
+}, Open  ]],
+
+Cell["Set the global symbols to convenient symbols:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"{", 
+   RowBox[{
+   "TimeSymbol", ",", "TimeIncrement", ",", "BrownianIncrement", ",", 
+    "CorrelationSymbol", ",", "DriftSymbol", ",", "DiffusionSymbol"}], "}"}], 
+  "=", 
+  RowBox[{"{", 
+   RowBox[{
+   "t", ",", "dt", ",", "dB", ",", "\[Rho]", ",", "\[Mu]", ",", "\[Sigma]"}], 
+   "}"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+  "t", ",", "dt", ",", "dB", ",", "\[Rho]", ",", "\[Mu]", ",", "\[Sigma]"}], 
+  "}"}]], "Output"]
+}, Open  ]],
+
+Cell["List of all of the symbols defined in the package:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Names", "[", "\"\<ItosLemma`*\>\"", "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"\<\"BrownianIncrement\"\>", ",", "\<\"BrownianList\"\>", 
+   ",", "\<\"CorrelationSymbol\"\>", ",", "\<\"Diffusion\"\>", 
+   ",", "\<\"DiffusionSymbol\"\>", ",", "\<\"Drift\"\>", 
+   ",", "\<\"DriftSymbol\"\>", ",", "\<\"ExponentialItoMake\"\>", 
+   ",", "\<\"ExponentialItoMakeFromItoD\"\>", ",", "\<\"IncludeArguments\"\>",
+    ",", "\<\"ItoD\"\>", ",", "\<\"ItoMake\"\>", 
+   ",", "\<\"ItoMakeFromItoD\"\>", ",", "\<\"ItosLemma\"\>", 
+   ",", "\<\"OrthogonalBrownians\"\>", ",", "\<\"RelativeItoD\"\>", 
+   ",", "\<\"RelativeItoMake\"\>", ",", "\<\"RelativeItoMakeFromItoD\"\>", 
+   ",", "\<\"Scalarize\"\>", ",", "\<\"SuppressTime\"\>", 
+   ",", "\<\"TimeIncrement\"\>", ",", "\<\"TimeSymbol\"\>", 
+   ",", "\<\"VectorItoMake\"\>"}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell["Some usage statements", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "ItoMake"}]], "Input"],
+
+Cell[BoxData["\<\"ItoMake[x[args], mu, sigma] associates a rule with the \
+(ultimate) head of the x[args]. The TimeSymbol should be one of the \
+arguments; for example, ItoMake[x[t], \[Mu], \[Sigma]]. For multiple \
+Brownians, sigma may be a list.\"\>"], "Print",
+ CellTags->"Info3260169726-1863836"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "ItoD"}]], "Input"],
+
+Cell[BoxData["\<\"ItoD[expr] applies Ito's lemma to expr. ItoD takes the \
+option OrthogonalBrownians.\"\>"], "Print",
+ CellTags->"Info3260169726-5767607"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "Drift"}]], "Input"],
+
+Cell[BoxData["\<\"Drift[expr] returns the drift of an Ito process.\"\>"], \
+"Print",
+ CellTags->"Info3260169726-1807366"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "Diffusion"}]], "Input"],
+
+Cell[BoxData["\<\"Diffusion[expr] returns the diffusion of an Ito process. \
+Diffusion takes the options BrownianList and Scalarize.\"\>"], "Print",
+ CellTags->"Info3260169726-8451177"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Introductory examples", "Section",
+ CellDingbat->"\[FilledSquare]",
+ ShowGroupOpener->False],
+
+Cell[CellGroupData[{
+
+Cell["Getting started", "Subsection"],
+
+Cell[CellGroupData[{
+
+Cell[TextData[{
+ "The canonical example: Find ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"d", "\[InvisibleSpace]", "y"}], TraditionalForm]]],
+ " where ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"y", " ", "=", " ", 
+    RowBox[{"f", "(", 
+     RowBox[{"x", ",", "t"}], ")"}]}], TraditionalForm]]],
+ " and ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"d", "\[InvisibleSpace]", "x"}], " ", "=", " ", 
+    RowBox[{
+     RowBox[{"\[Mu]", " ", "d", "\[InvisibleSpace]", "t"}], " ", "+", " ", 
+     RowBox[{"\[Sigma]", " ", "d", "\[InvisibleSpace]", "W"}]}]}], 
+   TraditionalForm]]],
+ "."
+}], "Subsubsection"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", 
+  RowBox[{"x", ",", "y", ",", "f"}], "]"}], "\n", 
+ RowBox[{"dx", " ", "=", " ", 
+  RowBox[{"ItoMake", "[", 
+   RowBox[{
+    RowBox[{"x", "[", "t", "]"}], ",", " ", "\[Mu]", ",", " ", "\[Sigma]"}], 
+   "]"}]}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "In this case, ",
+ StyleBox["ItoMake",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " stores a rule with ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "x"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell["Global`x", "Print",
+ CellTags->"Info3260169726-8573689"],
+
+Cell[BoxData[
+ InterpretationBox[GridBox[{
+    {GridBox[{
+       {
+        RowBox[{
+         RowBox[{"x", "[", 
+          RowBox[{"dt", "+", "t"}], "]"}], "=", 
+         RowBox[{
+          RowBox[{"dt", " ", "\[Mu]"}], "+", 
+          RowBox[{"\[Sigma]", " ", 
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"dB", ",", "1"}], "]"}]}], "+", 
+          RowBox[{"x", "[", "t", "]"}]}]}]}
+      },
+      BaselinePosition->{Baseline, {1, 1}},
+      GridBoxAlignment->{
+       "Columns" -> {{Left}}, "ColumnsIndexed" -> {}, "Rows" -> {{Baseline}}, 
+        "RowsIndexed" -> {}},
+      GridBoxItemSize->{"Columns" -> {{
+           Scaled[0.999]}}, "ColumnsIndexed" -> {}, "Rows" -> {{1.}}, 
+        "RowsIndexed" -> {}}]}
+   },
+   BaselinePosition->{Baseline, {1, 1}},
+   GridBoxAlignment->{
+    "Columns" -> {{Left}}, "ColumnsIndexed" -> {}, "Rows" -> {{Baseline}}, 
+     "RowsIndexed" -> {}}],
+  Definition["x"],
+  Editable->False]], "Print",
+ CellTags->"Info3260169726-8573689"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[TextData[{
+ "The drift and diffusion can be extracted from ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"d", "\[InvisibleSpace]", "x"}], TraditionalForm]]],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Drift", "[", "dx", "]"}]], "Input"],
+
+Cell[BoxData["\[Mu]"], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Diffusion", "[", "dx", "]"}]], "Input"],
+
+Cell[BoxData["\[Sigma]"], "Output"]
+}, Open  ]],
+
+Cell["Now let's compute the stochastic derivative:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"y", " ", "=", " ", 
+  RowBox[{"f", "[", 
+   RowBox[{
+    RowBox[{"x", "[", "t", "]"}], ",", " ", "t"}], "]"}]}], "\n", 
+ RowBox[{"ItoD", "[", "y", "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{"f", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]], "Output"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"x", ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "By default, ",
+ StyleBox["ItoD",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " removes the dependence of ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " on ",
+ Cell[BoxData[
+  FormBox["t", TraditionalForm]]],
+ " in the output. This behavior can be over-ridden with the option ",
+ StyleBox["SuppressTime",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"]
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Options", "[", "ItoD", "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{"OrthogonalBrownians", "\[Rule]", "True"}], ",", 
+   RowBox[{"SuppressTime", "\[Rule]", "True"}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dy", " ", "=", " ", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"y", ",", " ", 
+    RowBox[{"SuppressTime", "->", "False"}]}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{
+     RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"x", "[", "t", "]"}], ",", "t"}], "]"}]}]}], 
+    ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Here's what happens if ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " isn't an Ito process:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", "x", "]"}], "\n", 
+ RowBox[{"ItoD", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", " ", 
+   RowBox[{"SuppressTime", " ", "->", " ", "False"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{"dt", " ", 
+  RowBox[{
+   SuperscriptBox["x", "\[Prime]",
+    MultilineFunction->None], "[", "t", "]"}]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Other examples", "Subsubsection"],
+
+Cell["Time itself:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", "t", "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData["dt"], "Output"]
+}, Open  ]],
+
+Cell["\<\
+Brownian motion. (Note: Do not make any assignments to dB, the \
+BrownianIncrement symbol.)\
+\>", "Text"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", "b", "]"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"db", " ", "=", " ", 
+  RowBox[{"ItoMake", "[", 
+   RowBox[{
+    RowBox[{"B", "[", "t", "]"}], ",", "0", ",", "1"}], "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ SubscriptBox["dB", "1"]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  FractionBox[
+   SuperscriptBox[
+    RowBox[{"B", "[", "t", "]"}], "2"], "2"], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  FractionBox["dt", "2"], "+", 
+  RowBox[{"B", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Declare ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " again:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", " ", "\[Mu]", ",", " ", "\[Sigma]"}], 
+  "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  RowBox[{
+   RowBox[{
+    SubsuperscriptBox["\[Integral]", "t", "T"], 
+    RowBox[{
+     RowBox[{"x", "[", "s", "]"}], 
+     RowBox[{"\[DifferentialD]", "s"}]}]}], ",", 
+   RowBox[{"SuppressTime", "->", "False"}]}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"-", "dt"}], " ", 
+  RowBox[{"x", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Make ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"y", "[", "t", "]"}], TraditionalForm]]],
+ " an Ito process with two Brownians"
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", 
+  RowBox[{"y", ",", "g"}], "]"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{"y", "[", "t", "]"}], ",", " \[VeryThinSpace]", 
+   SubscriptBox["\[Mu]", "y"], ",", " ", 
+   RowBox[{"{", 
+    RowBox[{
+     SubscriptBox["\[Sigma]", 
+      SubscriptBox["y", "1"]], ",", " ", 
+     SubscriptBox["\[Sigma]", 
+      SubscriptBox["y", "2"]]}], "}"}]}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   SubscriptBox["\[Mu]", "y"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "1"]]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  RowBox[{"y", "[", "t", "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   SubscriptBox["\[Mu]", "y"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "1"]]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]]}]}]], "Output"]
+}, Open  ]],
+
+Cell["Here the Brownians are uncorrelated...", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"z", "=", 
+  RowBox[{"g", "[", 
+   RowBox[{"t", ",", 
+    RowBox[{"y", "[", "t", "]"}]}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"g", "[", 
+  RowBox[{"t", ",", 
+   RowBox[{"y", "[", "t", "]"}]}], "]"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dz1", "=", 
+  RowBox[{"ItoD", "[", "z", "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "1"]], " ", 
+   RowBox[{
+    SuperscriptBox["g", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]], " ", 
+   RowBox[{
+    SuperscriptBox["g", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Mu]", "y"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "2"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      SuperscriptBox["g", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"1", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"t", ",", "y"}], "]"}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["While here they are correlated:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dz2", "=", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"z", ",", 
+    RowBox[{"OrthogonalBrownians", "->", "False"}]}], "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "1"]], " ", 
+   RowBox[{
+    SuperscriptBox["g", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]], " ", 
+   RowBox[{
+    SuperscriptBox["g", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Mu]", "y"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "2"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"]], " ", 
+      SubscriptBox["\[Sigma]", 
+       SubscriptBox["y", "2"]], " ", 
+      SubscriptBox["\[Rho]", 
+       RowBox[{"1", ",", "2"}]], " ", 
+      RowBox[{
+       SuperscriptBox["g", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      SuperscriptBox["g", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"1", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"t", ",", "y"}], "]"}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["Here is the extra term:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dz2", "-", "dz1"}], "//", "Simplify"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"dt", " ", 
+  SubscriptBox["\[Sigma]", 
+   SubscriptBox["y", "1"]], " ", 
+  SubscriptBox["\[Sigma]", 
+   SubscriptBox["y", "2"]], " ", 
+  SubscriptBox["\[Rho]", 
+   RowBox[{"1", ",", "2"}]], " ", 
+  RowBox[{
+   SuperscriptBox["g", 
+    TagBox[
+     RowBox[{"(", 
+      RowBox[{"0", ",", "2"}], ")"}],
+     Derivative],
+    MultilineFunction->None], "[", 
+   RowBox[{"t", ",", "y"}], "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "We can mix ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " and ",
+ Cell[BoxData[
+  FormBox["y", TraditionalForm]]]
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ItoD", "[", 
+   RowBox[{"f", "[", 
+    RowBox[{
+     RowBox[{"x", "[", "t", "]"}], ",", 
+     RowBox[{"y", "[", "t", "]"}]}], "]"}], "]"}], " "}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"]], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{"\[Sigma]", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}]}], ")"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Mu]", "y"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SubsuperscriptBox["\[Sigma]", 
+       SubscriptBox["y", "2"], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{"\[Sigma]", " ", 
+      SubscriptBox["\[Sigma]", 
+       SubscriptBox["y", "1"]], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "y"}], "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "To compute the instantaneous covariance between ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " and ",
+ Cell[BoxData[
+  FormBox["y", TraditionalForm]]],
+ ", we can take the dot product of their diffusions"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"sigY", " ", "=", " ", 
+  RowBox[{"Diffusion", "[", 
+   RowBox[{"ItoD", "[", 
+    RowBox[{"y", "[", "t", "]"}], "]"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "1"]], ",", 
+   SubscriptBox["\[Sigma]", 
+    SubscriptBox["y", "2"]]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "But the diffusion for ",
+ Cell[BoxData[
+  FormBox["x", TraditionalForm]]],
+ " only has one Brownian"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"sigX", " ", "=", " ", 
+  RowBox[{"Diffusion", "[", 
+   RowBox[{"ItoD", "[", 
+    RowBox[{"x", "[", "t", "]"}], "]"}], "]"}]}]], "Input"],
+
+Cell[BoxData["\[Sigma]"], "Output"]
+}, Open  ]],
+
+Cell["To fix that, use the option BrownianList", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"blist", "=", 
+  RowBox[{"Cases", "[", 
+   RowBox[{
+    RowBox[{"ItoD", "[", 
+     RowBox[{"y", "[", "t", "]"}], "]"}], ",", " ", 
+    RowBox[{"Subscript", "[", 
+     RowBox[{"BrownianIncrement", ",", "_"}], "]"}], ",", "\[Infinity]"}], 
+   "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   SubscriptBox["dB", "1"], ",", 
+   SubscriptBox["dB", "2"]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"sigX", " ", "=", " ", 
+  RowBox[{"Diffusion", "[", 
+   RowBox[{
+    RowBox[{"ItoD", "[", 
+     RowBox[{"x", "[", "t", "]"}], "]"}], ",", 
+    RowBox[{"BrownianList", " ", "->", " ", "blist"}]}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"\[Sigma]", ",", "0"}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"sigX", ".", "sigY"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"\[Sigma]", " ", 
+  SubscriptBox["\[Sigma]", 
+   SubscriptBox["y", "1"]]}]], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Two variables, each with two shocks", "Subsection"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", 
+  RowBox[{"Subscript", ",", "f"}], "]"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{
+    SubscriptBox["x", "1"], "[", "t", "]"}], ",", " ", 
+   SubscriptBox["\[Mu]", "1"], ",", " ", 
+   RowBox[{"{", 
+    RowBox[{
+     SubscriptBox["\[Sigma]", "11"], ",", " ", 
+     SubscriptBox["\[Sigma]", "12"]}], "}"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   SubscriptBox["\[Mu]", "1"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", "11"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", "12"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "In this case, the rule is associated with ",
+ StyleBox["Subscript",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " (which is the Head of ",
+ Cell[BoxData[
+  FormBox[
+   SubscriptBox["x", "1"], TraditionalForm]]],
+ ")."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"?", "Subscript"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell["System`Subscript", "Print",
+ CellTags->"Info3260169727-9252446"],
+
+Cell[BoxData[
+ InterpretationBox[GridBox[{
+    {GridBox[{
+       {
+        RowBox[{
+         RowBox[{
+          RowBox[{"\<\"Subscript\"\>", "[", 
+           RowBox[{"x", ",", "1"}], "]"}], "[", 
+          RowBox[{"dt", "+", "t"}], "]"}], "=", 
+         RowBox[{
+          RowBox[{"dt", " ", 
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"\[Mu]", ",", "1"}], "]"}]}], "+", 
+          RowBox[{
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"dB", ",", "1"}], "]"}], " ", 
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"\[Sigma]", ",", "11"}], "]"}]}], "+", 
+          RowBox[{
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"dB", ",", "2"}], "]"}], " ", 
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"\[Sigma]", ",", "12"}], "]"}]}], "+", 
+          RowBox[{
+           RowBox[{"\<\"Subscript\"\>", "[", 
+            RowBox[{"x", ",", "1"}], "]"}], "[", "t", "]"}]}]}]}
+      },
+      BaselinePosition->{Baseline, {1, 1}},
+      GridBoxAlignment->{
+       "Columns" -> {{Left}}, "ColumnsIndexed" -> {}, "Rows" -> {{Baseline}}, 
+        "RowsIndexed" -> {}},
+      GridBoxItemSize->{"Columns" -> {{
+           Scaled[0.999]}}, "ColumnsIndexed" -> {}, "Rows" -> {{1.}}, 
+        "RowsIndexed" -> {}}]}
+   },
+   BaselinePosition->{Baseline, {1, 1}},
+   GridBoxAlignment->{
+    "Columns" -> {{Left}}, "ColumnsIndexed" -> {}, "Rows" -> {{Baseline}}, 
+     "RowsIndexed" -> {}}],
+  Definition["Subscript"],
+  Editable->False]], "Print",
+ CellTags->"Info3260169727-9252446"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{
+    SubscriptBox["x", "2"], "[", "t", "]"}], ",", " ", 
+   SubscriptBox["\[Mu]", "2"], ",", " ", 
+   RowBox[{"{", 
+    RowBox[{
+     SubscriptBox["\[Sigma]", "21"], ",", " ", 
+     SubscriptBox["\[Sigma]", "22"]}], "}"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   SubscriptBox["\[Mu]", "2"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", "21"]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   SubscriptBox["\[Sigma]", "22"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Alternatively one can use ",
+ StyleBox["VectorItoMake",
+  FontFamily->"Courier",
+  FontWeight->"Bold"],
+ ", which applies ",
+ StyleBox["ItoMake",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ " to a vector indexed with ",
+ StyleBox["Subscripts",
+  FontFamily->"Courier New",
+  FontWeight->"Bold"],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"VectorItoMake", "[", 
+  RowBox[{
+   RowBox[{"x", "[", "t", "]"}], ",", "2"}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"dt", " ", 
+     RowBox[{"\[Mu]", "[", 
+      SubscriptBox["x", "1"], "]"}]}], "+", 
+    RowBox[{
+     SubscriptBox["dB", "1"], " ", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", "1"], "[", 
+      SubscriptBox["x", "1"], "]"}]}], "+", 
+    RowBox[{
+     SubscriptBox["dB", "2"], " ", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", "2"], "[", 
+      SubscriptBox["x", "1"], "]"}]}]}], ",", 
+   RowBox[{
+    RowBox[{"dt", " ", 
+     RowBox[{"\[Mu]", "[", 
+      SubscriptBox["x", "2"], "]"}]}], "+", 
+    RowBox[{
+     SubscriptBox["dB", "1"], " ", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", "1"], "[", 
+      SubscriptBox["x", "2"], "]"}]}], "+", 
+    RowBox[{
+     SubscriptBox["dB", "2"], " ", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", "2"], "[", 
+      SubscriptBox["x", "2"], "]"}]}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", " ", 
+  RowBox[{"f", "[", 
+   RowBox[{
+    RowBox[{
+     SubscriptBox["x", "1"], "[", "t", "]"}], ",", 
+    RowBox[{
+     SubscriptBox["x", "2"], "[", "t", "]"}], ",", "t"}], "]"}], " ", 
+  "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "1"], "[", 
+       SubscriptBox["x", "2"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "1"], "[", 
+       SubscriptBox["x", "1"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}]}], ")"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "2"], "[", 
+       SubscriptBox["x", "2"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "2"], "[", 
+       SubscriptBox["x", "1"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}]}], ")"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       SubscriptBox["x", "1"], ",", 
+       SubscriptBox["x", "2"], ",", "t"}], "]"}], "+", 
+     RowBox[{
+      RowBox[{"\[Mu]", "[", 
+       SubscriptBox["x", "2"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{
+        SubscriptBox["\[Sigma]", "1"], "[", 
+        SubscriptBox["x", "2"], "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{
+        SubscriptBox["\[Sigma]", "2"], "[", 
+        SubscriptBox["x", "2"], "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{"\[Mu]", "[", 
+       SubscriptBox["x", "1"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "1"], "[", 
+       SubscriptBox["x", "1"], "]"}], " ", 
+      RowBox[{
+       SubscriptBox["\[Sigma]", "1"], "[", 
+       SubscriptBox["x", "2"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "2"], "[", 
+       SubscriptBox["x", "1"], "]"}], " ", 
+      RowBox[{
+       SubscriptBox["\[Sigma]", "2"], "[", 
+       SubscriptBox["x", "2"], "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{
+        SubscriptBox["\[Sigma]", "1"], "[", 
+        SubscriptBox["x", "1"], "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{
+        SubscriptBox["\[Sigma]", "2"], "[", 
+        SubscriptBox["x", "1"], "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        SubscriptBox["x", "1"], ",", 
+        SubscriptBox["x", "2"], ",", "t"}], "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+A vector of Brownians; three examples from \[CapitalOSlash]ksendal\
+\>", "Subsection"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", "B", "]"}], "\n", 
+ RowBox[{"VectorItoMake", "[", 
+  RowBox[{
+   RowBox[{"B", "[", "t", "]"}], ",", " ", "0", ",", " ", "1", ",", " ", 
+   "3"}], "]"}], "\n", 
+ RowBox[{"Bvec", " ", "=", " ", 
+  RowBox[{"Array", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{
+      SubscriptBox["B", "#"], "[", "t", "]"}], "&"}], ",", " ", "3"}], 
+   "]"}]}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   SubscriptBox["dB", "1"], ",", 
+   SubscriptBox["dB", "2"], ",", 
+   SubscriptBox["dB", "3"]}], "}"}]], "Output"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    SubscriptBox["B", "1"], "[", "t", "]"}], ",", 
+   RowBox[{
+    SubscriptBox["B", "2"], "[", "t", "]"}], ",", 
+   RowBox[{
+    SubscriptBox["B", "3"], "[", "t", "]"}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["First example", "Subsubsection"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"R", "=", 
+  RowBox[{"Sqrt", "[", 
+   RowBox[{"Bvec", ".", "Bvec"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ SqrtBox[
+  RowBox[{
+   SuperscriptBox[
+    RowBox[{
+     SubscriptBox["B", "1"], "[", "t", "]"}], "2"], "+", 
+   SuperscriptBox[
+    RowBox[{
+     SubscriptBox["B", "2"], "[", "t", "]"}], "2"], "+", 
+   SuperscriptBox[
+    RowBox[{
+     SubscriptBox["B", "3"], "[", "t", "]"}], "2"]}]]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Simplify", " ", "/@", " ", 
+   RowBox[{"ItoD", "[", "R", "]"}]}], " "}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  FractionBox["dt", 
+   SqrtBox[
+    RowBox[{
+     SubsuperscriptBox["B", "1", "2"], "+", 
+     SubsuperscriptBox["B", "2", "2"], "+", 
+     SubsuperscriptBox["B", "3", "2"]}]]], "+", 
+  FractionBox[
+   RowBox[{
+    SubscriptBox["B", "1"], " ", 
+    SubscriptBox["dB", "1"]}], 
+   SqrtBox[
+    RowBox[{
+     SubsuperscriptBox["B", "1", "2"], "+", 
+     SubsuperscriptBox["B", "2", "2"], "+", 
+     SubsuperscriptBox["B", "3", "2"]}]]], "+", 
+  FractionBox[
+   RowBox[{
+    SubscriptBox["B", "2"], " ", 
+    SubscriptBox["dB", "2"]}], 
+   SqrtBox[
+    RowBox[{
+     SubsuperscriptBox["B", "1", "2"], "+", 
+     SubsuperscriptBox["B", "2", "2"], "+", 
+     SubsuperscriptBox["B", "3", "2"]}]]], "+", 
+  FractionBox[
+   RowBox[{
+    SubscriptBox["B", "3"], " ", 
+    SubscriptBox["dB", "3"]}], 
+   SqrtBox[
+    RowBox[{
+     SubsuperscriptBox["B", "1", "2"], "+", 
+     SubsuperscriptBox["B", "2", "2"], "+", 
+     SubsuperscriptBox["B", "3", "2"]}]]]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Second example", "Subsubsection"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"vec2", " ", "=", " ", 
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{"Plus", " ", "@@", " ", "Bvec"}], ",", " ", 
+    RowBox[{
+     SuperscriptBox[
+      RowBox[{
+       SubscriptBox["B", "2"], "[", "t", "]"}], "2"], "-", " ", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["B", "1"], "[", "t", "]"}], 
+      RowBox[{
+       SubscriptBox["B", "3"], "[", "t", "]"}]}]}]}], "}"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     SubscriptBox["B", "1"], "[", "t", "]"}], "+", 
+    RowBox[{
+     SubscriptBox["B", "2"], "[", "t", "]"}], "+", 
+    RowBox[{
+     SubscriptBox["B", "3"], "[", "t", "]"}]}], ",", 
+   RowBox[{
+    SuperscriptBox[
+     RowBox[{
+      SubscriptBox["B", "2"], "[", "t", "]"}], "2"], "-", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["B", "1"], "[", "t", "]"}], " ", 
+     RowBox[{
+      SubscriptBox["B", "3"], "[", "t", "]"}]}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ItoD", "[", "vec2", "]"}], "//", "MatrixForm"}]], "Input"],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"(", "\[NoBreak]", GridBox[{
+     {
+      RowBox[{
+       SubscriptBox["dB", "1"], "+", 
+       SubscriptBox["dB", "2"], "+", 
+       SubscriptBox["dB", "3"]}]},
+     {
+      RowBox[{"dt", "-", 
+       RowBox[{
+        SubscriptBox["B", "3"], " ", 
+        SubscriptBox["dB", "1"]}], "+", 
+       RowBox[{"2", " ", 
+        SubscriptBox["B", "2"], " ", 
+        SubscriptBox["dB", "2"]}], "-", 
+       RowBox[{
+        SubscriptBox["B", "1"], " ", 
+        SubscriptBox["dB", "3"]}]}]}
+    }], "\[NoBreak]", ")"}],
+  MatrixForm[{
+   Subscript[dB, 1] + Subscript[dB, 2] + Subscript[dB, 3], dt - 
+    Subscript[B, 3] Subscript[dB, 1] + 2 Subscript[B, 2] Subscript[dB, 2] - 
+    Subscript[B, 1] Subscript[dB, 3]}]]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Third example", "Subsubsection"],
+
+Cell["Show that the following have zero drifts", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"vec3", "=", 
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{
+     SuperscriptBox["E", 
+      RowBox[{"t", "/", "2"}]], " ", 
+     RowBox[{"Cos", "[", 
+      RowBox[{
+       SubscriptBox["B", "1"], "[", "t", "]"}], "]"}]}], ",", 
+    RowBox[{
+     SuperscriptBox["E", 
+      RowBox[{"t", "/", "2"}]], " ", 
+     RowBox[{"Sin", "[", 
+      RowBox[{
+       SubscriptBox["B", "1"], "[", "t", "]"}], "]"}]}], ",", " ", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{
+       RowBox[{
+        SubscriptBox["B", "1"], "[", "t", "]"}], " ", "+", " ", "t"}], ")"}], 
+     RowBox[{"Exp", "[", 
+      RowBox[{
+       RowBox[{"-", 
+        RowBox[{
+         SubscriptBox["B", "1"], "[", "t", "]"}]}], "-", 
+       RowBox[{"t", "/", "2"}]}], "]"}]}]}], "}"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{"t", "/", "2"}]], " ", 
+    RowBox[{"Cos", "[", 
+     RowBox[{
+      SubscriptBox["B", "1"], "[", "t", "]"}], "]"}]}], ",", 
+   RowBox[{
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{"t", "/", "2"}]], " ", 
+    RowBox[{"Sin", "[", 
+     RowBox[{
+      SubscriptBox["B", "1"], "[", "t", "]"}], "]"}]}], ",", 
+   RowBox[{
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{
+      RowBox[{"-", 
+       FractionBox["t", "2"]}], "-", 
+      RowBox[{
+       SubscriptBox["B", "1"], "[", "t", "]"}]}]], " ", 
+    RowBox[{"(", 
+     RowBox[{"t", "+", 
+      RowBox[{
+       SubscriptBox["B", "1"], "[", "t", "]"}]}], ")"}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"ItoD", "[", "vec3", "]"}], "//", "Drift"}], "//", 
+  "Simplify"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"0", ",", "0", ",", "0"}], "}"}]], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Examples from finance", "Section"],
+
+Cell[CellGroupData[{
+
+Cell["Forward rates and bond prices", "Subsection",
+ ShowGroupOpener->False],
+
+Cell[CellGroupData[{
+
+Cell["Forward rates", "Subsubsection"],
+
+Cell[TextData[{
+ "Start with Ito process for forward rates, ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"f", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], TraditionalForm]]],
+ ", where ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"T", "-", "t"}], TraditionalForm]]],
+ " is the maturity of the forward rate and ",
+ Cell[BoxData[
+  FormBox["T", TraditionalForm]]],
+ " is a fixed time in the future."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", "f", "]"}], "\n", 
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{"f", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[TextData[{
+ "The interest rate as ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"f", "[", 
+    RowBox[{"t", ",", "t"}], "]"}], TraditionalForm]]]
+}], "Subsubsection"],
+
+Cell[TextData[{
+ "The instantaneous forward rate is the interest rate: ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"r", "[", "t", "]"}], " ", "=", " ", 
+    RowBox[{"f", "[", 
+     RowBox[{"t", ",", "t"}], "]"}]}], TraditionalForm]]],
+ ". In this case, however, the second argument is no longer fixed."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  RowBox[{"f", "[", 
+   RowBox[{"t", ",", "t"}], "]"}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "f"], "[", 
+    RowBox[{"t", ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Mu]", "f"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "+", 
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{"t", ",", "t"}], "]"}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "The preceding result is formally correct if we interpret ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "t"}], "]"}], TraditionalForm]]],
+ " as follows:"
+}], "Text",
+ TextAlignment->Left,
+ TextJustification->0],
+
+Cell[TextData[{
+ " ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{
+     FormBox[
+      RowBox[{
+       RowBox[{
+        SuperscriptBox["f", 
+         TagBox[
+          RowBox[{"(", 
+           RowBox[{"0", ",", "1"}], ")"}],
+          Derivative],
+         MultilineFunction->None], "(", 
+        RowBox[{"t", ",", "t"}], ")"}], " ", "=", " ", 
+       RowBox[{
+        RowBox[{
+         SuperscriptBox["f", 
+          RowBox[{"(", 
+           RowBox[{"0", ",", "1"}], ")"}]], "(", 
+         RowBox[{"0", ",", "t"}], ")"}], " ", "+", " ", 
+        SubsuperscriptBox["\[Integral]", "0", "t"]}]}],
+      TraditionalForm], 
+     FractionBox["\[PartialD]", 
+      RowBox[{"\[PartialD]", "\[InvisibleSpace]", "t"}]], 
+     RowBox[{
+      SubscriptBox["\[Mu]", "f"], "(", 
+      RowBox[{"s", ",", "t"}], ")"}], 
+     RowBox[{"\[DifferentialD]", "s"}]}], " ", "+", " ", 
+    RowBox[{
+     SubsuperscriptBox["\[Integral]", "0", "t"], 
+     RowBox[{
+      RowBox[{
+       FractionBox["\[PartialD]", 
+        RowBox[{"\[PartialD]", "\[InvisibleSpace]", "t"}]], 
+       RowBox[{
+        SubscriptBox["\[Sigma]", "f"], "(", 
+        RowBox[{"s", ",", "t"}], ")"}]}], 
+      RowBox[{
+       RowBox[{"\[DifferentialD]", 
+        RowBox[{"W", "(", "s", ")"}]}], "."}]}]}]}], TraditionalForm]],
+  TextAlignment->Left,
+  TextJustification->0]
+}], "Text",
+ TextAlignment->Center,
+ TextJustification->0]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["From forward rates to bond prices and back again", "Subsubsection"],
+
+Cell[TextData[{
+ "Bond prices: ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"p", "[", 
+     RowBox[{"t", ",", "T"}], "]"}], " ", "=", " ", 
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{"-", 
+      RowBox[{
+       SubsuperscriptBox["\[Integral]", "t", "T"], 
+       RowBox[{
+        RowBox[{"f", "[", 
+         RowBox[{"t", ",", "v"}], "]"}], 
+        RowBox[{"\[DifferentialD]", "v"}]}]}]}]]}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dp", " ", "=", 
+  RowBox[{"ItoD", "[", 
+   SuperscriptBox["\[ExponentialE]", 
+    RowBox[{"-", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{"f", "[", 
+        RowBox[{"t", ",", "v"}], "]"}], 
+       RowBox[{"\[DifferentialD]", "v"}]}]}]}]], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["\[ExponentialE]", 
+       RowBox[{"-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{"f", "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"f", "[", 
+         RowBox[{"t", ",", "t"}], "]"}], "-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{
+           SubscriptBox["\[Mu]", "f"], "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}], ")"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[ExponentialE]", 
+       RowBox[{"-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{"f", "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+      SuperscriptBox[
+       RowBox[{"(", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{
+           SubscriptBox["\[Sigma]", "f"], "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"]}]}], ")"}]}], 
+  "-", 
+  RowBox[{
+   SuperscriptBox["\[ExponentialE]", 
+    RowBox[{"-", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{"f", "[", 
+        RowBox[{"t", ",", "v"}], "]"}], 
+       RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     SubsuperscriptBox["\[Integral]", "t", "T"], 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "f"], "[", 
+       RowBox[{"t", ",", "v"}], "]"}], 
+      RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", "p", "]"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMakeFromItoD", "[", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", "dp"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["\[ExponentialE]", 
+       RowBox[{"-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{"f", "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"f", "[", 
+         RowBox[{"t", ",", "t"}], "]"}], "-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{
+           SubscriptBox["\[Mu]", "f"], "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}], ")"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[ExponentialE]", 
+       RowBox[{"-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{"f", "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+      SuperscriptBox[
+       RowBox[{"(", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{
+           SubscriptBox["\[Sigma]", "f"], "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"]}]}], ")"}]}], 
+  "-", 
+  RowBox[{
+   SuperscriptBox["\[ExponentialE]", 
+    RowBox[{"-", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{"f", "[", 
+        RowBox[{"t", ",", "v"}], "]"}], 
+       RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     SubsuperscriptBox["\[Integral]", "t", "T"], 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "f"], "[", 
+       RowBox[{"t", ",", "v"}], "]"}], 
+      RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "The Ito process for forward rates: ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"d", "\[InvisibleSpace]", 
+     RowBox[{"f", "[", 
+      RowBox[{"t", ",", "T"}], "]"}]}], " ", "=", " ", 
+    RowBox[{
+     RowBox[{"-", 
+      FractionBox["\[PartialD]", 
+       RowBox[{"\[PartialD]", "T"}]]}], "d", "\[InvisibleSpace]", 
+     RowBox[{"log", "(", 
+      RowBox[{"p", "[", 
+       RowBox[{"t", ",", "T"}], "]"}], ")"}]}]}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"df", " ", "=", " ", 
+  RowBox[{"-", 
+   RowBox[{"D", "[", 
+    RowBox[{
+     RowBox[{"ItoD", "[", 
+      RowBox[{"Log", "[", 
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "T"}], "]"}], "]"}], "]"}], ",", "T"}], 
+    "]"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"-", 
+   FractionBox[
+    RowBox[{
+     SuperscriptBox["\[ExponentialE]", 
+      RowBox[{"-", 
+       RowBox[{
+        SubsuperscriptBox["\[Integral]", "t", "T"], 
+        RowBox[{
+         RowBox[{"f", "[", 
+          RowBox[{"t", ",", "v"}], "]"}], 
+         RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+     RowBox[{"f", "[", 
+      RowBox[{"t", ",", "T"}], "]"}], " ", 
+     RowBox[{"(", 
+      RowBox[{
+       SubsuperscriptBox["\[Integral]", "t", "T"], 
+       RowBox[{
+        RowBox[{
+         SubscriptBox["\[Sigma]", "f"], "[", 
+         RowBox[{"t", ",", "v"}], "]"}], 
+        RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+     SubscriptBox["dB", "1"]}], 
+    RowBox[{"p", "[", 
+     RowBox[{"t", ",", "T"}], "]"}]]}], "+", 
+  FractionBox[
+   RowBox[{
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{"-", 
+      RowBox[{
+       SubsuperscriptBox["\[Integral]", "t", "T"], 
+       RowBox[{
+        RowBox[{"f", "[", 
+         RowBox[{"t", ",", "v"}], "]"}], 
+        RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+    SubscriptBox["dB", "1"], " ", 
+    RowBox[{
+     SubscriptBox["\[Sigma]", "f"], "[", 
+     RowBox[{"t", ",", "T"}], "]"}]}], 
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}]], "-", 
+  FractionBox[
+   RowBox[{
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{"-", 
+      RowBox[{
+       SubsuperscriptBox["\[Integral]", "t", "T"], 
+       RowBox[{
+        RowBox[{"f", "[", 
+         RowBox[{"t", ",", "v"}], "]"}], 
+        RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+    RowBox[{"(", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{
+        SubscriptBox["\[Sigma]", "f"], "[", 
+        RowBox[{"t", ",", "v"}], "]"}], 
+       RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+    SubscriptBox["dB", "1"], " ", 
+    RowBox[{
+     SuperscriptBox["p", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"0", ",", "1"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"t", ",", "T"}], "]"}]}], 
+   SuperscriptBox[
+    RowBox[{"p", "[", 
+     RowBox[{"t", ",", "T"}], "]"}], "2"]], "-", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     FractionBox[
+      RowBox[{
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{"-", "2"}], " ", 
+         RowBox[{
+          SubsuperscriptBox["\[Integral]", "t", "T"], 
+          RowBox[{
+           RowBox[{"f", "[", 
+            RowBox[{"t", ",", "v"}], "]"}], 
+           RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+       RowBox[{"f", "[", 
+        RowBox[{"t", ",", "T"}], "]"}], " ", 
+       SuperscriptBox[
+        RowBox[{"(", 
+         RowBox[{
+          SubsuperscriptBox["\[Integral]", "t", "T"], 
+          RowBox[{
+           RowBox[{
+            SubscriptBox["\[Sigma]", "f"], "[", 
+            RowBox[{"t", ",", "v"}], "]"}], 
+           RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"]}], 
+      SuperscriptBox[
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "T"}], "]"}], "2"]], "-", 
+     FractionBox[
+      RowBox[{
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{"-", "2"}], " ", 
+         RowBox[{
+          SubsuperscriptBox["\[Integral]", "t", "T"], 
+          RowBox[{
+           RowBox[{"f", "[", 
+            RowBox[{"t", ",", "v"}], "]"}], 
+           RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+       RowBox[{"(", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{
+           SubscriptBox["\[Sigma]", "f"], "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+       RowBox[{
+        SubscriptBox["\[Sigma]", "f"], "[", 
+        RowBox[{"t", ",", "T"}], "]"}]}], 
+      SuperscriptBox[
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "T"}], "]"}], "2"]], "+", 
+     RowBox[{
+      FractionBox["1", 
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "T"}], "]"}]], 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{
+         RowBox[{"-", 
+          SuperscriptBox["\[ExponentialE]", 
+           RowBox[{"-", 
+            RowBox[{
+             SubsuperscriptBox["\[Integral]", "t", "T"], 
+             RowBox[{
+              RowBox[{"f", "[", 
+               RowBox[{"t", ",", "v"}], "]"}], 
+              RowBox[{"\[DifferentialD]", "v"}]}]}]}]]}], " ", 
+         RowBox[{"f", "[", 
+          RowBox[{"t", ",", "T"}], "]"}], " ", 
+         RowBox[{"(", 
+          RowBox[{
+           RowBox[{"f", "[", 
+            RowBox[{"t", ",", "t"}], "]"}], "-", 
+           RowBox[{
+            SubsuperscriptBox["\[Integral]", "t", "T"], 
+            RowBox[{
+             RowBox[{
+              SubscriptBox["\[Mu]", "f"], "[", 
+              RowBox[{"t", ",", "v"}], "]"}], 
+             RowBox[{"\[DifferentialD]", "v"}]}]}]}], ")"}]}], "-", 
+        RowBox[{
+         FractionBox["1", "2"], " ", 
+         SuperscriptBox["\[ExponentialE]", 
+          RowBox[{"-", 
+           RowBox[{
+            SubsuperscriptBox["\[Integral]", "t", "T"], 
+            RowBox[{
+             RowBox[{"f", "[", 
+              RowBox[{"t", ",", "v"}], "]"}], 
+             RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+         RowBox[{"f", "[", 
+          RowBox[{"t", ",", "T"}], "]"}], " ", 
+         SuperscriptBox[
+          RowBox[{"(", 
+           RowBox[{
+            SubsuperscriptBox["\[Integral]", "t", "T"], 
+            RowBox[{
+             RowBox[{
+              SubscriptBox["\[Sigma]", "f"], "[", 
+              RowBox[{"t", ",", "v"}], "]"}], 
+             RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"]}], "-", 
+        RowBox[{
+         SuperscriptBox["\[ExponentialE]", 
+          RowBox[{"-", 
+           RowBox[{
+            SubsuperscriptBox["\[Integral]", "t", "T"], 
+            RowBox[{
+             RowBox[{"f", "[", 
+              RowBox[{"t", ",", "v"}], "]"}], 
+             RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+         RowBox[{
+          SubscriptBox["\[Mu]", "f"], "[", 
+          RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+        RowBox[{
+         SuperscriptBox["\[ExponentialE]", 
+          RowBox[{"-", 
+           RowBox[{
+            SubsuperscriptBox["\[Integral]", "t", "T"], 
+            RowBox[{
+             RowBox[{"f", "[", 
+              RowBox[{"t", ",", "v"}], "]"}], 
+             RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+         RowBox[{"(", 
+          RowBox[{
+           SubsuperscriptBox["\[Integral]", "t", "T"], 
+           RowBox[{
+            RowBox[{
+             SubscriptBox["\[Sigma]", "f"], "[", 
+             RowBox[{"t", ",", "v"}], "]"}], 
+            RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], " ", 
+         RowBox[{
+          SubscriptBox["\[Sigma]", "f"], "[", 
+          RowBox[{"t", ",", "T"}], "]"}]}]}], ")"}]}], "+", 
+     FractionBox[
+      RowBox[{
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{"-", "2"}], " ", 
+         RowBox[{
+          SubsuperscriptBox["\[Integral]", "t", "T"], 
+          RowBox[{
+           RowBox[{"f", "[", 
+            RowBox[{"t", ",", "v"}], "]"}], 
+           RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+       SuperscriptBox[
+        RowBox[{"(", 
+         RowBox[{
+          SubsuperscriptBox["\[Integral]", "t", "T"], 
+          RowBox[{
+           RowBox[{
+            SubscriptBox["\[Sigma]", "f"], "[", 
+            RowBox[{"t", ",", "v"}], "]"}], 
+           RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"], " ", 
+       RowBox[{
+        SuperscriptBox["p", 
+         TagBox[
+          RowBox[{"(", 
+           RowBox[{"0", ",", "1"}], ")"}],
+          Derivative],
+         MultilineFunction->None], "[", 
+        RowBox[{"t", ",", "T"}], "]"}]}], 
+      SuperscriptBox[
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "T"}], "]"}], "3"]], "-", 
+     RowBox[{
+      FractionBox["1", 
+       SuperscriptBox[
+        RowBox[{"p", "[", 
+         RowBox[{"t", ",", "T"}], "]"}], "2"]], 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"(", 
+         RowBox[{
+          RowBox[{
+           SuperscriptBox["\[ExponentialE]", 
+            RowBox[{"-", 
+             RowBox[{
+              SubsuperscriptBox["\[Integral]", "t", "T"], 
+              RowBox[{
+               RowBox[{"f", "[", 
+                RowBox[{"t", ",", "v"}], "]"}], 
+               RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+           RowBox[{"(", 
+            RowBox[{
+             RowBox[{"f", "[", 
+              RowBox[{"t", ",", "t"}], "]"}], "-", 
+             RowBox[{
+              SubsuperscriptBox["\[Integral]", "t", "T"], 
+              RowBox[{
+               RowBox[{
+                SubscriptBox["\[Mu]", "f"], "[", 
+                RowBox[{"t", ",", "v"}], "]"}], 
+               RowBox[{"\[DifferentialD]", "v"}]}]}]}], ")"}]}], "+", 
+          RowBox[{
+           FractionBox["1", "2"], " ", 
+           SuperscriptBox["\[ExponentialE]", 
+            RowBox[{"-", 
+             RowBox[{
+              SubsuperscriptBox["\[Integral]", "t", "T"], 
+              RowBox[{
+               RowBox[{"f", "[", 
+                RowBox[{"t", ",", "v"}], "]"}], 
+               RowBox[{"\[DifferentialD]", "v"}]}]}]}]], " ", 
+           SuperscriptBox[
+            RowBox[{"(", 
+             RowBox[{
+              SubsuperscriptBox["\[Integral]", "t", "T"], 
+              RowBox[{
+               RowBox[{
+                SubscriptBox["\[Sigma]", "f"], "[", 
+                RowBox[{"t", ",", "v"}], "]"}], 
+               RowBox[{"\[DifferentialD]", "v"}]}]}], ")"}], "2"]}]}], ")"}], 
+        " ", 
+        RowBox[{
+         SuperscriptBox["p", 
+          TagBox[
+           RowBox[{"(", 
+            RowBox[{"0", ",", "1"}], ")"}],
+           Derivative],
+          MultilineFunction->None], "[", 
+         RowBox[{"t", ",", "T"}], "]"}]}], ")"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+The preceding expression looks somewhat messy. We can simplify it a bit:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"df", "/.", 
+   RowBox[{"p", "->", 
+    RowBox[{"Function", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"t", ",", "T"}], "}"}], ",", " ", 
+      SuperscriptBox["\[ExponentialE]", 
+       RowBox[{"-", 
+        RowBox[{
+         SubsuperscriptBox["\[Integral]", "t", "T"], 
+         RowBox[{
+          RowBox[{"f", "[", 
+           RowBox[{"t", ",", "v"}], "]"}], 
+          RowBox[{"\[DifferentialD]", "v"}]}]}]}]]}], "]"}]}]}], "//", 
+  "Simplify"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "f"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["From bond prices to forward rates and back again", "Subsubsection"],
+
+Cell["Start with the Ito process for bond prices", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", "p", "]"}], "\n", 
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dp1", " ", "=", " ", 
+  RowBox[{"RelativeItoD", "[", 
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Again, the Ito process for forward rates: ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"d", "\[InvisibleSpace]", 
+     RowBox[{"f", "[", 
+      RowBox[{"t", ",", "T"}], "]"}]}], " ", "=", " ", 
+    RowBox[{
+     RowBox[{"-", 
+      FractionBox["\[PartialD]", 
+       RowBox[{"\[PartialD]", "T"}]]}], "d", "\[InvisibleSpace]", 
+     RowBox[{"log", "(", 
+      RowBox[{"p", "[", 
+       RowBox[{"t", ",", "T"}], "]"}], ")"}]}]}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", "f", "]"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"df", " ", "=", 
+  RowBox[{"ItoMakeFromItoD", "[", 
+   RowBox[{
+    RowBox[{"f", "[", 
+     RowBox[{"t", ",", "T"}], "]"}], ",", 
+    RowBox[{"-", 
+     RowBox[{"D", "[", 
+      RowBox[{
+       RowBox[{"ItoD", "[", 
+        RowBox[{"Log", "[", 
+         RowBox[{"p", "[", 
+          RowBox[{"t", ",", "T"}], "]"}], "]"}], "]"}], ",", "T"}], "]"}]}]}],
+    "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", 
+    SubscriptBox["dB", "1"]}], " ", 
+   RowBox[{
+    SubsuperscriptBox["\[Sigma]", "p", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"-", 
+      RowBox[{
+       SubsuperscriptBox["\[Mu]", "p", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "T"}], "]"}], " ", 
+      RowBox[{
+       SubsuperscriptBox["\[Sigma]", "p", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"t", ",", "T"}], "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["An aside: The arbitrage-free drift of forward rates", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"Drift", "[", "df", "]"}], " ", "/.", "  ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "->", 
+    RowBox[{"Function", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"t", ",", "T"}], "}"}], ",", " ", 
+      RowBox[{
+       RowBox[{"r", "[", "t", "]"}], "+", 
+       RowBox[{
+        RowBox[{
+         SubscriptBox["\[Sigma]", "p"], "[", 
+         RowBox[{"t", ",", "T"}], "]"}], 
+        RowBox[{"\[Lambda]", "[", "t", "]"}]}]}]}], " ", "]"}]}]}], "//", 
+  "Simplify"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(", 
+   RowBox[{
+    RowBox[{"-", 
+     RowBox[{"\[Lambda]", "[", "t", "]"}]}], "+", 
+    RowBox[{
+     SubscriptBox["\[Sigma]", "p"], "[", 
+     RowBox[{"t", ",", "T"}], "]"}]}], ")"}], " ", 
+  RowBox[{
+   SubsuperscriptBox["\[Sigma]", "p", 
+    TagBox[
+     RowBox[{"(", 
+      RowBox[{"0", ",", "1"}], ")"}],
+     Derivative],
+    MultilineFunction->None], "[", 
+   RowBox[{"t", ",", "T"}], "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+Use Ito's lemma to compute the Ito process for bond prices given the derived \
+process for forward rates:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dp2", " ", "=", " ", 
+  RowBox[{"RelativeItoD", "[", 
+   SuperscriptBox["\[ExponentialE]", 
+    RowBox[{"-", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{"f", "[", 
+        RowBox[{"t", ",", "v"}], "]"}], 
+       RowBox[{"\[DifferentialD]", "v"}]}]}]}]], "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", 
+    SubscriptBox["dB", "1"]}], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Sigma]", "p"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "-", 
+     RowBox[{
+      SubscriptBox["\[Sigma]", "p"], "[", 
+      RowBox[{"t", ",", "T"}], "]"}]}], ")"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"f", "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "-", 
+     RowBox[{
+      SubscriptBox["\[Mu]", "p"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "+", 
+     RowBox[{
+      SubscriptBox["\[Mu]", "p"], "[", 
+      RowBox[{"t", ",", "T"}], "]"}], "+", 
+     SuperscriptBox[
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "t"}], "]"}], "2"], "-", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "t"}], "]"}], " ", 
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "T"}], "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "What is the difference between ",
+ StyleBox["dp1",
+  FontFamily->"Courier",
+  FontWeight->"Bold"],
+ " and ",
+ StyleBox["dp2",
+  FontFamily->"Courier",
+  FontWeight->"Bold"],
+ "?"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"diff", " ", "=", " ", 
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{
+     RowBox[{
+      RowBox[{"Diffusion", "[", "dp1", "]"}], "-", 
+      RowBox[{"Diffusion", "[", "dp2", "]"}]}], " ", "==", " ", "0"}], ",", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"Drift", "[", "dp1", "]"}], "-", 
+      RowBox[{"Drift", "[", "dp2", "]"}]}], "==", "0"}]}], "}"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     SubscriptBox["\[Sigma]", "p"], "[", 
+     RowBox[{"t", ",", "t"}], "]"}], "==", "0"}], ",", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"-", 
+      RowBox[{"f", "[", 
+       RowBox[{"t", ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      SubscriptBox["\[Mu]", "p"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "-", 
+     SuperscriptBox[
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "t"}], "]"}], "2"], "+", 
+     RowBox[{
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "t"}], "]"}], " ", 
+      RowBox[{
+       SubscriptBox["\[Sigma]", "p"], "[", 
+       RowBox[{"t", ",", "T"}], "]"}]}]}], "==", "0"}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell["What conditions must be identically true?", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"SolveAlways", "[", 
+  RowBox[{"diff", ",", " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"f", "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "\[Rule]", 
+     RowBox[{
+      SubscriptBox["\[Mu]", "p"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}]}], ",", 
+    RowBox[{
+     RowBox[{
+      SubscriptBox["\[Sigma]", "p"], "[", 
+      RowBox[{"t", ",", "t"}], "]"}], "\[Rule]", "0"}]}], "}"}], 
+  "}"}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["An annuity", "Subsubsection"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", "p", "]"}], "\n", 
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}], ",", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], " ", 
+   RowBox[{
+    SubscriptBox["\[Mu]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}], "+", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"t", ",", "T"}], "]"}], " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "p"], "[", 
+    RowBox[{"t", ",", "T"}], "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+Compute the process for an annuity (using the fact that a zero-coupon bond is \
+worth one at maturity).\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ItoD", "[", 
+   RowBox[{
+    SubsuperscriptBox["\[Integral]", "t", "T"], 
+    RowBox[{
+     RowBox[{"p", "[", 
+      RowBox[{"t", ",", "s"}], "]"}], 
+     RowBox[{"\[DifferentialD]", "s"}]}]}], "]"}], "/.", " ", 
+  RowBox[{
+   RowBox[{"p", "[", 
+    RowBox[{"T_", ",", "T_"}], "]"}], "->", "1"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"-", "1"}], "+", 
+     RowBox[{
+      SubsuperscriptBox["\[Integral]", "t", "T"], 
+      RowBox[{
+       RowBox[{
+        RowBox[{"p", "[", 
+         RowBox[{"t", ",", "s"}], "]"}], " ", 
+        RowBox[{
+         SubscriptBox["\[Mu]", "p"], "[", 
+         RowBox[{"t", ",", "s"}], "]"}]}], 
+       RowBox[{"\[DifferentialD]", "s"}]}]}]}], ")"}]}], "+", 
+  RowBox[{
+   RowBox[{"(", 
+    RowBox[{
+     SubsuperscriptBox["\[Integral]", "t", "T"], 
+     RowBox[{
+      RowBox[{
+       RowBox[{"p", "[", 
+        RowBox[{"t", ",", "s"}], "]"}], " ", 
+       RowBox[{
+        SubscriptBox["\[Sigma]", "p"], "[", 
+        RowBox[{"t", ",", "s"}], "]"}]}], 
+      RowBox[{"\[DifferentialD]", "s"}]}]}], ")"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Exponential diffusions", "Subsection",
+ ShowGroupOpener->False],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ExponentialItoMake", "[", 
+  RowBox[{"v", "[", "t", "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", "v"], " ", 
+   RowBox[{"v", "[", "t", "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     FractionBox[
+      SubsuperscriptBox["\[Sigma]", "v", "2"], "2"], "+", 
+     SubscriptBox[
+      OverscriptBox["\[Mu]", "~"], "v"]}], ")"}], " ", 
+   RowBox[{"v", "[", "t", "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoD", "[", 
+  RowBox[{"Log", "[", 
+   RowBox[{"v", "[", "t", "]"}], "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", "v"]}], "+", 
+  RowBox[{"dt", " ", 
+   SubscriptBox[
+    OverscriptBox["\[Mu]", "~"], "v"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoD", "[", 
+  RowBox[{"v", "[", "t", "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   SubscriptBox["\[Sigma]", "v"]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     FractionBox[
+      SubsuperscriptBox["\[Sigma]", "v", "2"], "2"], "+", 
+     SubscriptBox[
+      OverscriptBox["\[Mu]", "~"], "v"]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ExponentialItoMake", "[", 
+  RowBox[{
+   RowBox[{"\[Psi]", "[", "t", "]"}], ",", 
+   OverscriptBox["\[Mu]", "~"], ",", " ", "\[Sigma]", ",", "2"}], 
+  "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{"\[Psi]", "[", "t", "]"}], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "1"], "[", "\[Psi]", "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   RowBox[{"\[Psi]", "[", "t", "]"}], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "2"], "[", "\[Psi]", "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"\[Psi]", "[", "t", "]"}], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      OverscriptBox["\[Mu]", "~"], "[", "\[Psi]", "]"}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      RowBox[{"(", 
+       RowBox[{
+        SuperscriptBox[
+         RowBox[{
+          SubscriptBox["\[Sigma]", "1"], "[", "\[Psi]", "]"}], "2"], "+", 
+        SuperscriptBox[
+         RowBox[{
+          SubscriptBox["\[Sigma]", "2"], "[", "\[Psi]", "]"}], "2"]}], 
+       ")"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Simplify", "/@", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"Log", "[", 
+    RowBox[{"\[Psi]", "[", "t", "]"}], "]"}], "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", 
+   RowBox[{
+    OverscriptBox["\[Mu]", "~"], "[", "\[Psi]", "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "1"], "[", "\[Psi]", "]"}]}], "+", 
+  RowBox[{
+   SubscriptBox["dB", "2"], " ", 
+   RowBox[{
+    SubscriptBox["\[Sigma]", "2"], "[", "\[Psi]", "]"}]}]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["State-price deflator and money-market account", "Subsection",
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", 
+  RowBox[{
+  "m", ",", "\[Beta]", ",", "\[Zeta]", ",", "n", ",", " ", "r", ",", " ", 
+   "\[Lambda]", ",", " ", "R", ",", " ", "\[CapitalLambda]"}], "]"}]], "Input"],
+
+Cell["State-price deflator", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"m", "[", "t", "]"}], ",", 
+   RowBox[{"-", "r"}], ",", 
+   RowBox[{"-", "\[Lambda]"}]}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", "dt"}], " ", "r", " ", 
+   RowBox[{"m", "[", "t", "]"}]}], "-", 
+  RowBox[{"\[Lambda]", " ", 
+   RowBox[{"m", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoD", "[", 
+  RowBox[{"m", "[", "t", "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", "dt"}], " ", "r"}], "-", 
+  RowBox[{"\[Lambda]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell["Money-market account", "Text",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"\[Beta]", "[", "t", "]"}], ",", "r", ",", "0"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{"dt", " ", "r", " ", 
+  RowBox[{"\[Beta]", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoD", "[", 
+  RowBox[{"\[Beta]", "[", "t", "]"}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{"dt", " ", "r"}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"\[Zeta]", "[", "t", "]"}], ",", " ", "0", ",", " ", 
+   RowBox[{"-", "\[Lambda]"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"-", "\[Lambda]"}], " ", 
+  SubscriptBox["dB", "1"], " ", 
+  RowBox[{"\[Zeta]", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoD", "[", 
+  RowBox[{
+   RowBox[{"\[Zeta]", "[", "t", "]"}], "/", 
+   RowBox[{"\[Beta]", "[", "t", "]"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", "dt"}], " ", "r"}], "-", 
+  RowBox[{"\[Lambda]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell["Two state-price deflators", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"n", "[", "t", "]"}], ",", " ", 
+   RowBox[{"-", "R"}], ",", " ", 
+   RowBox[{"-", "\[CapitalLambda]"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", "dt"}], " ", "R", " ", 
+   RowBox[{"n", "[", "t", "]"}]}], "-", 
+  RowBox[{"\[CapitalLambda]", " ", 
+   RowBox[{"n", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell["The Ito process for the log of the exchange rate", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dX", " ", "=", " ", 
+  RowBox[{
+   RowBox[{"ItoD", "[", 
+    RowBox[{"Log", "[", 
+     RowBox[{
+      RowBox[{"m", "[", "t", "]"}], "/", 
+      RowBox[{"n", "[", "t", "]"}]}], "]"}], "]"}], "//", 
+   "Simplify"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   FractionBox["1", "2"], " ", "dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"-", "2"}], " ", "r"}], "+", 
+     RowBox[{"2", " ", "R"}], "-", 
+     SuperscriptBox["\[Lambda]", "2"], "+", 
+     SuperscriptBox["\[CapitalLambda]", "2"]}], ")"}]}], "+", 
+  RowBox[{
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"-", "\[Lambda]"}], "+", "\[CapitalLambda]"}], ")"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"]
+}, Open  ]],
+
+Cell["Expected exchange rate depreciation", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Drift", "[", "dX", "]"}], "//", "Expand"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"-", "r"}], "+", "R", "-", 
+  FractionBox[
+   SuperscriptBox["\[Lambda]", "2"], "2"], "+", 
+  FractionBox[
+   SuperscriptBox["\[CapitalLambda]", "2"], "2"]}]], "Output"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Exponentially-weighted forecast", "Subsection"],
+
+Cell[TextData[{
+ "Exponentially-weighted forecast, where ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{
+    RowBox[{"z", "[", 
+     RowBox[{"t", ",", "s"}], "]"}], " ", ":=", " ", 
+    RowBox[{
+     SubscriptBox["E", "t"], "[", 
+     RowBox[{"z", "[", "s", "]"}], "]"}]}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", 
+  RowBox[{"z", ",", "V"}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"SetOptions", "[", 
+   RowBox[{"Integrate", ",", " ", 
+    RowBox[{"GenerateConditions", "->", "False"}]}], "]"}], ";"}]], "Input"],
+
+Cell["Conditional expectations are martingales:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"ItoMake", "[", 
+  RowBox[{
+   RowBox[{"z", "[", 
+    RowBox[{"t", ",", "s"}], "]"}], ",", "0", ",", 
+   RowBox[{"sigZ", "[", 
+    RowBox[{"t", ",", "s"}], "]"}]}], "]"}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"sigZ", "[", 
+   RowBox[{"t", ",", "s"}], "]"}], " ", 
+  SubscriptBox["dB", "1"]}]], "Output"]
+}, Open  ]],
+
+Cell["Define the weighted forecast,", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"V", "[", "t_", "]"}], " ", "=", " ", 
+  RowBox[{
+   SubsuperscriptBox["\[Integral]", "t", "T"], 
+   RowBox[{"\[Theta]", " ", 
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{
+      RowBox[{"-", "\[Theta]"}], 
+      RowBox[{"(", 
+       RowBox[{"s", "-", "t"}], ")"}]}]], 
+    RowBox[{"z", "[", 
+     RowBox[{"t", ",", "s"}], "]"}], 
+    RowBox[{"\[DifferentialD]", "s"}]}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"\[Theta]", " ", 
+  RowBox[{
+   SubsuperscriptBox["\[Integral]", "t", "T"], 
+   RowBox[{
+    RowBox[{
+     SuperscriptBox["\[ExponentialE]", 
+      RowBox[{
+       RowBox[{"-", 
+        RowBox[{"(", 
+         RowBox[{"s", "-", "t"}], ")"}]}], " ", "\[Theta]"}]], " ", 
+     RowBox[{"z", "[", 
+      RowBox[{"t", ",", "s"}], "]"}]}], 
+    RowBox[{"\[DifferentialD]", "s"}]}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["where", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{" ", 
+  RowBox[{
+   RowBox[{
+    SubsuperscriptBox["\[Integral]", "t", "T"], 
+    RowBox[{"\[Theta]", " ", 
+     SuperscriptBox["\[ExponentialE]", 
+      RowBox[{
+       RowBox[{"-", "\[Theta]"}], 
+       RowBox[{"(", 
+        RowBox[{"s", "-", "t"}], ")"}]}]], 
+     RowBox[{"\[DifferentialD]", "s"}]}]}], "//", "Simplify"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"1", "-", 
+  SuperscriptBox["\[ExponentialE]", 
+   RowBox[{
+    RowBox[{"(", 
+     RowBox[{"t", "-", "T"}], ")"}], " ", "\[Theta]"}]]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dV", "  ", "=", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"V", "[", "t", "]"}], "]"}]}]], "Input",
+ CellDingbat->None,
+ ShowGroupOpener->False],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Theta]", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     SubsuperscriptBox["\[Integral]", "t", "T"], 
+     RowBox[{
+      RowBox[{
+       SuperscriptBox["\[ExponentialE]", 
+        RowBox[{
+         RowBox[{"-", 
+          RowBox[{"(", 
+           RowBox[{"s", "-", "t"}], ")"}]}], " ", "\[Theta]"}]], " ", 
+       RowBox[{"sigZ", "[", 
+        RowBox[{"t", ",", "s"}], "]"}]}], 
+      RowBox[{"\[DifferentialD]", "s"}]}]}], ")"}], " ", 
+   SubscriptBox["dB", "1"]}], "+", 
+  RowBox[{"dt", " ", "\[Theta]", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"\[Theta]", " ", 
+      RowBox[{
+       SubsuperscriptBox["\[Integral]", "t", "T"], 
+       RowBox[{
+        RowBox[{
+         SuperscriptBox["\[ExponentialE]", 
+          RowBox[{
+           RowBox[{"-", 
+            RowBox[{"(", 
+             RowBox[{"s", "-", "t"}], ")"}]}], " ", "\[Theta]"}]], " ", 
+         RowBox[{"z", "[", 
+          RowBox[{"t", ",", "s"}], "]"}]}], 
+        RowBox[{"\[DifferentialD]", "s"}]}]}]}], "-", 
+     RowBox[{"z", "[", 
+      RowBox[{"t", ",", "t"}], "]"}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Note the drift of ",
+ Cell[BoxData[
+  FormBox["V", TraditionalForm]]],
+ " is ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"\[Theta]", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"V", "[", "t", "]"}], " ", "-", 
+      RowBox[{"z", "[", 
+       RowBox[{"t", ",", "t"}], "]"}]}], ")"}]}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"Drift", "[", "dV", "]"}], " ", "==", " ", 
+   RowBox[{"\[Theta]", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"V", "[", "t", "]"}], "-", 
+      RowBox[{"z", "[", 
+       RowBox[{"t", ",", "t"}], "]"}]}], ")"}]}]}], "//", 
+  "Simplify"}]], "Input"],
+
+Cell[BoxData["True"], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Deriving the Black-Scholes PDE using a replicating, self-financing trading \
+strategy\
+\>", "Section"],
+
+Cell["\<\
+In this section, we use ItosLemma to derive the Black-Scholes PDE in two \
+separate ways.\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell["Setup", "Subsection"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"SetOptions", "[", 
+   RowBox[{"ItoD", ",", 
+    RowBox[{"SuppressTime", "\[Rule]", "False"}]}], "]"}], ";"}]], "Input"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["First Derivation", "Subsection"],
+
+Cell[TextData[{
+ "This derivation follows that given by Darrell Duffie in chapter 5 of ",
+ StyleBox["Dynamic Asset Pricing Theory",
+  FontSlant->"Italic"],
+ "."
+}], "Text"],
+
+Cell[BoxData[
+ RowBox[{"Clear", "[", 
+  RowBox[{"s", ",", "\[Beta]", ",", "f", ",", "\[Mu]", ",", "\[Sigma]"}], 
+  "]"}]], "Input"],
+
+Cell["The diffusions for the stock and the money-market account:", "Text"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   FractionBox[
+    RowBox[{"d", "\[InvisibleSpace]", 
+     RowBox[{"s", "(", "t", ")"}]}], 
+    RowBox[{"s", "(", "t", ")"}]], "=", " ", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"\[Mu]", " \[InvisibleSpace]", "dt"}], "+", 
+     RowBox[{"\[Sigma]", "\[InvisibleSpace] ", 
+      SubscriptBox["dB", "1"], "    ", "and", "   ", 
+      FractionBox[
+       RowBox[{"d", "\[InvisibleSpace]", 
+        RowBox[{"\[Beta]", "(", "t", ")"}]}], 
+       RowBox[{"\[Beta]", "(", "t", ")"}]]}]}], "=", " ", 
+    RowBox[{"r", " \[InvisibleSpace]", 
+     RowBox[{"dt", "."}]}]}]}], TraditionalForm]], "DisplayFormula"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"s", "[", "t", "]"}], ",", "\[Mu]", ",", " ", "\[Sigma]"}], 
+  "]"}], "\[IndentingNewLine]", 
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"\[Beta]", "[", "t", "]"}], ",", "r", ",", " ", "0"}], 
+  "]"}]}], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]", " ", 
+   RowBox[{"s", "[", "t", "]"}]}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"s", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output"],
+
+Cell[BoxData[
+ RowBox[{"dt", " ", "r", " ", 
+  RowBox[{"\[Beta]", "[", "t", "]"}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Consider the function of ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"f", "(", 
+    RowBox[{
+     RowBox[{"s", "(", "t", ")"}], ",", "t"}], ")"}], TraditionalForm]]],
+ ". Its dynamics are given as follows:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"df", "=", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"f", "[", 
+    RowBox[{
+     RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"s", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{
+     RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"s", "[", "t", "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{"s", "[", "t", "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], 
+    ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Suppose the function can be replicated by a self-financing trading strategy \
+with portfolio weights ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"a", "(", "t", ")"}], TraditionalForm]]],
+ " and ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"b", "(", "t", ")"}], TraditionalForm]]],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"self", " ", "=", " ", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"a", "[", "t", "]"}], 
+    RowBox[{"s", "[", "t", "]"}]}], "+", 
+   RowBox[{
+    RowBox[{"b", "[", "t", "]"}], 
+    RowBox[{"\[Beta]", "[", "t", "]"}]}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"a", "[", "t", "]"}], " ", 
+   RowBox[{"s", "[", "t", "]"}]}], "+", 
+  RowBox[{
+   RowBox[{"b", "[", "t", "]"}], " ", 
+   RowBox[{"\[Beta]", "[", "t", "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+By definition, the dynamics of a self-financing trading strategy are given by:\
+\>", "Text"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   RowBox[{
+    RowBox[{"(", "\[Dagger]", ")"}], "          ", 
+    RowBox[{"d", "(", 
+     RowBox[{
+      RowBox[{
+       RowBox[{"a", "(", "t", ")"}], 
+       RowBox[{"s", "(", "t", ")"}]}], "+", 
+      RowBox[{
+       RowBox[{"b", "(", "t", ")"}], 
+       RowBox[{"\[Beta]", "(", "t", ")"}]}]}], ")"}]}], " ", "=", " ", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"a", "(", "t", ")"}], "d", "\[InvisibleSpace]", 
+     RowBox[{"s", "(", "t", ")"}]}], "+", 
+    RowBox[{
+     RowBox[{"b", "(", "t", ")"}], "d", "\[InvisibleSpace]", 
+     RowBox[{"\[Beta]", "(", "t", ")"}]}]}]}], 
+  TraditionalForm]], "DisplayFormula"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"dself", "=", 
+  RowBox[{"Collect", "[", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{
+      RowBox[{"a", "[", "t", "]"}], " ", 
+      RowBox[{"ItoD", "[", 
+       RowBox[{"s", "[", "t", "]"}], "]"}]}], "+", 
+     RowBox[{
+      RowBox[{"b", "[", "t", "]"}], " ", 
+      RowBox[{"ItoD", "[", 
+       RowBox[{"\[Beta]", "[", "t", "]"}], "]"}]}]}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{"{", 
+     RowBox[{"dt", ",", " ", 
+      SubscriptBox["dB", "1"]}], "}"}]}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"a", "[", "t", "]"}], " ", 
+   RowBox[{"s", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"a", "[", "t", "]"}], " ", 
+      RowBox[{"s", "[", "t", "]"}]}], "+", 
+     RowBox[{"r", " ", 
+      RowBox[{"b", "[", "t", "]"}], " ", 
+      RowBox[{"\[Beta]", "[", "t", "]"}]}]}], ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+If the self-financing trading strategy replicates the function, then the \
+drift and diffusion of the self-financing trading strategy will equal the \
+drift and diffusion of the function:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"equations", "=", 
+  RowBox[{"{", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"self", "\[Equal]", 
+     RowBox[{"f", "[", 
+      RowBox[{
+       RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"Drift", "[", "dself", "]"}], "\[Equal]", 
+     RowBox[{"Drift", "[", "df", "]"}]}], ",", " ", 
+    RowBox[{
+     RowBox[{"Diffusion", "[", "dself", "]"}], "\[Equal]", 
+     RowBox[{"Diffusion", "[", "df", "]"}]}]}], "\[IndentingNewLine]", "\t", 
+   "}"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{
+     RowBox[{
+      RowBox[{"a", "[", "t", "]"}], " ", 
+      RowBox[{"s", "[", "t", "]"}]}], "+", 
+     RowBox[{
+      RowBox[{"b", "[", "t", "]"}], " ", 
+      RowBox[{"\[Beta]", "[", "t", "]"}]}]}], "==", 
+    RowBox[{"f", "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], ",", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"a", "[", "t", "]"}], " ", 
+      RowBox[{"s", "[", "t", "]"}]}], "+", 
+     RowBox[{"r", " ", 
+      RowBox[{"b", "[", "t", "]"}], " ", 
+      RowBox[{"\[Beta]", "[", "t", "]"}]}]}], "==", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"s", "[", "t", "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{"s", "[", "t", "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}]}], ",", 
+   RowBox[{
+    RowBox[{"\[Sigma]", " ", 
+     RowBox[{"a", "[", "t", "]"}], " ", 
+     RowBox[{"s", "[", "t", "]"}]}], "==", 
+    RowBox[{"\[Sigma]", " ", 
+     RowBox[{"s", "[", "t", "]"}], " ", 
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"1", ",", "0"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+We can obtain the PDE by eliminating the weights from the equations:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"pde1", " ", "=", " ", 
+  RowBox[{
+   RowBox[{"Eliminate", "[", 
+    RowBox[{"equations", ",", " ", 
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"a", "[", "t", "]"}], ",", " ", 
+       RowBox[{"b", "[", "t", "]"}]}], "}"}]}], "]"}], "/.", 
+   RowBox[{
+    RowBox[{"s", "[", "t", "]"}], "\[Rule]", "x"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"2", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+     RowBox[{"2", " ", "r", " ", "x", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      SuperscriptBox["x", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}]}], ")"}]}], "==", 
+  RowBox[{"2", " ", "r", " ", "\[Sigma]", " ", 
+   RowBox[{"f", "[", 
+    RowBox[{"x", ",", "t"}], "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Is the trading strategy really self-financing?", "Subsubsection"],
+
+Cell["\<\
+We can solve for the portfolio weights using the equality of the function \
+with the portfolio and the equality of the diffusions:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"weights", " ", "=", " ", 
+  RowBox[{"First", " ", "@", " ", 
+   RowBox[{"Solve", "[", 
+    RowBox[{
+     RowBox[{"equations", "[", 
+      RowBox[{"[", 
+       RowBox[{"{", 
+        RowBox[{"1", ",", "3"}], "}"}], "]"}], "]"}], ",", 
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"a", "[", "t", "]"}], ",", " ", 
+       RowBox[{"b", "[", "t", "]"}]}], "}"}]}], "]"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"b", "[", "t", "]"}], "\[Rule]", 
+    RowBox[{"-", 
+     FractionBox[
+      RowBox[{
+       RowBox[{"-", 
+        RowBox[{"f", "[", 
+         RowBox[{
+          RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], " ", 
+        RowBox[{
+         SuperscriptBox["f", 
+          TagBox[
+           RowBox[{"(", 
+            RowBox[{"1", ",", "0"}], ")"}],
+           Derivative],
+          MultilineFunction->None], "[", 
+         RowBox[{
+          RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], 
+      RowBox[{"\[Beta]", "[", "t", "]"}]]}]}], ",", 
+   RowBox[{
+    RowBox[{"a", "[", "t", "]"}], "\[Rule]", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "Is the trading strategy really self-financing? We can check ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"(", "\[Dagger]", ")"}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"firstway", " ", "=", " ", 
+  RowBox[{"ItoD", "[", 
+   RowBox[{"self", "/.", "weights"}], "]"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"s", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{
+     RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      SuperscriptBox["f", 
+       TagBox[
+        RowBox[{"(", 
+         RowBox[{"0", ",", "1"}], ")"}],
+        Derivative],
+       MultilineFunction->None], "[", 
+      RowBox[{
+       RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"s", "[", "t", "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+     RowBox[{
+      FractionBox["1", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      SuperscriptBox[
+       RowBox[{"s", "[", "t", "]"}], "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], 
+    ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"secondway", "=", 
+  RowBox[{"dself", "/.", "weights"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"\[Sigma]", " ", 
+   RowBox[{"s", "[", "t", "]"}], " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{
+     RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+  RowBox[{"dt", " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"\[Mu]", " ", 
+      RowBox[{"s", "[", "t", "]"}], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "-", 
+     RowBox[{"r", " ", 
+      RowBox[{"(", 
+       RowBox[{
+        RowBox[{"-", 
+         RowBox[{"f", "[", 
+          RowBox[{
+           RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+        RowBox[{
+         RowBox[{"s", "[", "t", "]"}], " ", 
+         RowBox[{
+          SuperscriptBox["f", 
+           TagBox[
+            RowBox[{"(", 
+             RowBox[{"1", ",", "0"}], ")"}],
+            Derivative],
+           MultilineFunction->None], "[", 
+          RowBox[{
+           RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], ")"}]}]}], 
+    ")"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["The diffusions are equal:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"Diffusion", "[", "firstway", "]"}], "\[Equal]", 
+   RowBox[{"Diffusion", "[", "secondway", "]"}]}], "//", 
+  "Simplify"}]], "Input"],
+
+Cell[BoxData["True"], "Output"]
+}, Open  ]],
+
+Cell["\<\
+The drifts are equal if and only if the PDE is satisfied. In other words, the \
+trading strategy is self-financing if and only if it replicates.\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"pde2", " ", "=", " ", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"Drift", "[", "firstway", "]"}], "==", 
+    RowBox[{"Drift", "[", "secondway", "]"}]}], "/.", 
+   RowBox[{
+    RowBox[{"s", "[", "t", "]"}], "\[Rule]", "x"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "t"}], "]"}], "+", 
+   RowBox[{"x", " ", "\[Mu]", " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+   RowBox[{
+    FractionBox["1", "2"], " ", 
+    SuperscriptBox["x", "2"], " ", 
+    SuperscriptBox["\[Sigma]", "2"], " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"2", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"x", ",", "t"}], "]"}]}]}], "==", 
+  RowBox[{
+   RowBox[{"x", " ", "\[Mu]", " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{"x", ",", "t"}], "]"}]}], "-", 
+   RowBox[{"r", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"-", 
+       RowBox[{"f", "[", 
+        RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+      RowBox[{"x", " ", 
+       RowBox[{
+        SuperscriptBox["f", 
+         TagBox[
+          RowBox[{"(", 
+           RowBox[{"1", ",", "0"}], ")"}],
+          Derivative],
+         MultilineFunction->None], "[", 
+        RowBox[{"x", ",", "t"}], "]"}]}]}], ")"}]}]}]}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "We can check that the two PDEs are the same by eliminating the parameter ",
+ Cell[BoxData[
+  FormBox["r", TraditionalForm]]],
+ " from the two:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Eliminate", "[", 
+  RowBox[{
+   RowBox[{"{", 
+    RowBox[{"pde1", ",", "pde2"}], "}"}], ",", "r"}], "]"}]], "Input"],
+
+Cell[BoxData["True"], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Second derivation", "Subsection"],
+
+Cell[TextData[{
+ "The absence of arbitrage requires that any self-financing trading strategy \
+deflated by the state-price deflator must be a martingale. In other words, \
+the drift of the deflated trading strategy must be zero. The dynamics of the \
+state-price deflator ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"\[DoubledPi]", "(", "t", ")"}], TraditionalForm]]],
+ " can be expressed in terms of the risk-free rate and the price of risk ",
+ Cell[BoxData[
+  FormBox["\[Lambda]", TraditionalForm]]],
+ ":"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"RelativeItoMake", "[", 
+  RowBox[{
+   RowBox[{"\[DoubledPi]", "[", "t", "]"}], ",", " ", 
+   RowBox[{"-", "r"}], ",", " ", 
+   RowBox[{"-", "\[Lambda]"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"-", "dt"}], " ", "r", " ", 
+   RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "-", 
+  RowBox[{"\[Lambda]", " ", 
+   SubscriptBox["dB", "1"], " ", 
+   RowBox[{"\[DoubledPi]", "[", "t", "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+The simplest trading strategy is to buy and hold an asset that pays no \
+dividends. For the stock we have:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"noarb1", " ", "=", 
+  RowBox[{
+   RowBox[{"Drift", " ", "@", " ", 
+    RowBox[{"ItoD", "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], 
+      RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "]"}]}], "\[Equal]", 
+   "0"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{
+    RowBox[{"-", "r"}], " ", 
+    RowBox[{"s", "[", "t", "]"}], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "+", 
+   RowBox[{"\[Mu]", " ", 
+    RowBox[{"s", "[", "t", "]"}], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "-", 
+   RowBox[{"\[Lambda]", " ", "\[Sigma]", " ", 
+    RowBox[{"s", "[", "t", "]"}], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}]}]}], "==", "0"}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+In this case, the martingale property implies the expected return equals the \
+risk-free rate plus a risk premium that is the product of the relative \
+volatility and the price of risk:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Solve", "[", 
+  RowBox[{"noarb1", ",", " ", "\[Mu]"}], "]"}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"{", 
+   RowBox[{"\[Mu]", "\[Rule]", 
+    FractionBox[
+     RowBox[{
+      RowBox[{"r", " ", 
+       RowBox[{"s", "[", "t", "]"}], " ", 
+       RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "+", 
+      RowBox[{"\[Lambda]", " ", "\[Sigma]", " ", 
+       RowBox[{"s", "[", "t", "]"}], " ", 
+       RowBox[{"\[DoubledPi]", "[", "t", "]"}]}]}], 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], " ", 
+      RowBox[{"\[DoubledPi]", "[", "t", "]"}]}]]}], "}"}], "}"}]], "Output"]
+}, Open  ]],
+
+Cell["For the derivative security we have:", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"noarb2", " ", "=", " ", 
+  RowBox[{
+   RowBox[{"Drift", " ", "@", " ", 
+    RowBox[{"ItoD", "[", 
+     RowBox[{
+      RowBox[{"f", "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], 
+      RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "]"}]}], "\[Equal]", 
+   "0"}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{
+    RowBox[{"-", "r"}], " ", 
+    RowBox[{"f", "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}]}], "-", 
+   RowBox[{"\[Lambda]", " ", "\[Sigma]", " ", 
+    RowBox[{"s", "[", "t", "]"}], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}], " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"1", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}], "+", 
+   RowBox[{
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}], " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"0", ",", "1"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{
+        RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}], "+", 
+      RowBox[{"\[Mu]", " ", 
+       RowBox[{"s", "[", "t", "]"}], " ", 
+       RowBox[{
+        SuperscriptBox["f", 
+         TagBox[
+          RowBox[{"(", 
+           RowBox[{"1", ",", "0"}], ")"}],
+          Derivative],
+         MultilineFunction->None], "[", 
+        RowBox[{
+         RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], ")"}]}], "+", 
+   RowBox[{
+    FractionBox["1", "2"], " ", 
+    SuperscriptBox["\[Sigma]", "2"], " ", 
+    SuperscriptBox[
+     RowBox[{"s", "[", "t", "]"}], "2"], " ", 
+    RowBox[{"\[DoubledPi]", "[", "t", "]"}], " ", 
+    RowBox[{
+     SuperscriptBox["f", 
+      TagBox[
+       RowBox[{"(", 
+        RowBox[{"2", ",", "0"}], ")"}],
+       Derivative],
+      MultilineFunction->None], "[", 
+     RowBox[{
+      RowBox[{"s", "[", "t", "]"}], ",", "t"}], "]"}]}]}], "==", 
+  "0"}]], "Output"]
+}, Open  ]],
+
+Cell[TextData[{
+ "We can obtain the PDE by eliminating the price of risk ",
+ Cell[BoxData[
+  FormBox["\[Lambda]", TraditionalForm]]],
+ " from the two absence-of-arbitrage conditions:"
+}], "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"pde3", "=", 
+  RowBox[{
+   RowBox[{"Eliminate", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"noarb1", ",", " ", "noarb2"}], "}"}], ",", " ", "\[Lambda]"}], 
+    "]"}], "/.", 
+   RowBox[{
+    RowBox[{"s", "[", "t", "]"}], "\[Rule]", "x"}]}]}]], "Input"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"\[DoubledPi]", "[", "t", "]"}], " ", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"2", " ", "r", " ", 
+      RowBox[{"f", "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}], "-", 
+     RowBox[{"2", " ", "r", " ", "x", " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"1", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}], "-", 
+     RowBox[{
+      SuperscriptBox["x", "2"], " ", 
+      SuperscriptBox["\[Sigma]", "2"], " ", 
+      RowBox[{
+       SuperscriptBox["f", 
+        TagBox[
+         RowBox[{"(", 
+          RowBox[{"2", ",", "0"}], ")"}],
+         Derivative],
+        MultilineFunction->None], "[", 
+       RowBox[{"x", ",", "t"}], "]"}]}]}], ")"}]}], "==", 
+  RowBox[{"2", " ", 
+   RowBox[{"\[DoubledPi]", "[", "t", "]"}], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"0", ",", "1"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "t"}], "]"}]}]}]], "Output"]
+}, Open  ]],
+
+Cell["\<\
+We can check that this PDE is the same as the one derived above:\
+\>", "Text"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Eliminate", "[", 
+  RowBox[{
+   RowBox[{"{", 
+    RowBox[{"pde1", ",", "pde3"}], "}"}], ",", " ", "r"}], "]"}]], "Input"],
+
+Cell[BoxData["True"], "Output"]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"SetOptions", "[", 
+   RowBox[{"ItoD", ",", 
+    RowBox[{"SuppressTime", "\[Rule]", "True"}]}], "]"}], ";"}]], "Input"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+FYI: Black-Scholes solution to the PDE for price of a call option\
+\>", "Subsection"],
+
+Cell[TextData[{
+ "European call option pays ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"max", "(", 
+    RowBox[{
+     RowBox[{"x", "-", "k"}], ",", "0"}], ")"}], TraditionalForm]]],
+ " on expiration date ",
+ Cell[BoxData[
+  FormBox[
+   RowBox[{"T", ">", "t"}], TraditionalForm]]],
+ "."
+}], "Text"],
+
+Cell[BoxData[{
+ RowBox[{"Clear", "[", 
+  RowBox[{"V", ",", "\[CapitalPhi]"}], "]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"\[CapitalPhi]", "[", "z_", "]"}], "=", 
+   RowBox[{"CDF", "[", 
+    RowBox[{
+     RowBox[{"NormalDistribution", "[", 
+      RowBox[{"0", ",", "1"}], "]"}], ",", "z"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"V", "[", 
+   RowBox[{"x_", ",", "t_"}], "]"}], " ", ":=", " ", 
+  RowBox[{
+   RowBox[{"With", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"a", "=", 
+       FractionBox[
+        RowBox[{
+         RowBox[{"Log", "[", 
+          RowBox[{"x", "/", "k"}], "]"}], "+", 
+         RowBox[{
+          RowBox[{"(", 
+           RowBox[{"r", "+", 
+            RowBox[{
+             SuperscriptBox["\[Sigma]", "2"], "/", "2"}]}], ")"}], 
+          RowBox[{"(", 
+           RowBox[{"T", "-", "t"}], ")"}]}]}], 
+        RowBox[{"\[Sigma]", " ", 
+         RowBox[{"Sqrt", "[", 
+          RowBox[{"T", "-", "t"}], "]"}]}]]}], "}"}], ",", 
+     RowBox[{
+      RowBox[{"x", " ", 
+       RowBox[{"\[CapitalPhi]", "[", "a", "]"}]}], "-", 
+      RowBox[{"k", " ", 
+       RowBox[{"Exp", "[", 
+        RowBox[{
+         RowBox[{"-", "r"}], 
+         RowBox[{"(", 
+          RowBox[{"T", "-", "t"}], ")"}]}], "]"}], 
+       RowBox[{"\[CapitalPhi]", "[", 
+        RowBox[{"a", "-", 
+         RowBox[{"\[Sigma]", " ", 
+          RowBox[{"Sqrt", "[", 
+           RowBox[{"T", "-", "t"}], "]"}]}]}], "]"}]}]}]}], 
+    "\[IndentingNewLine]", "]"}], "//", "Evaluate"}]}]}], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"V", "[", 
+   RowBox[{"x", ",", "t"}], "]"}], "//", "TraditionalForm"}]], "Input"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   RowBox[{
+    FractionBox["1", "2"], " ", "x", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"erf", "(", 
+       FractionBox[
+        RowBox[{
+         RowBox[{
+          RowBox[{"(", 
+           RowBox[{"T", "-", "t"}], ")"}], " ", 
+          RowBox[{"(", 
+           RowBox[{
+            FractionBox[
+             SuperscriptBox["\[Sigma]", "2"], "2"], "+", "r"}], ")"}]}], "+", 
+         RowBox[{"log", "(", 
+          FractionBox["x", "k"], ")"}]}], 
+        RowBox[{
+         SqrtBox["2"], " ", 
+         SqrtBox[
+          RowBox[{"T", "-", "t"}]], " ", "\[Sigma]"}]], ")"}], "+", "1"}], 
+     ")"}]}], "-", 
+   RowBox[{
+    FractionBox["1", "2"], " ", 
+    SuperscriptBox["\[ExponentialE]", 
+     RowBox[{
+      RowBox[{"-", "r"}], " ", 
+      RowBox[{"(", 
+       RowBox[{"T", "-", "t"}], ")"}]}]], " ", "k", " ", 
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"erf", "(", 
+       FractionBox[
+        RowBox[{
+         FractionBox[
+          RowBox[{
+           RowBox[{
+            RowBox[{"(", 
+             RowBox[{"T", "-", "t"}], ")"}], " ", 
+            RowBox[{"(", 
+             RowBox[{
+              FractionBox[
+               SuperscriptBox["\[Sigma]", "2"], "2"], "+", "r"}], ")"}]}], 
+           "+", 
+           RowBox[{"log", "(", 
+            FractionBox["x", "k"], ")"}]}], 
+          RowBox[{
+           SqrtBox[
+            RowBox[{"T", "-", "t"}]], " ", "\[Sigma]"}]], "-", 
+         RowBox[{
+          SqrtBox[
+           RowBox[{"T", "-", "t"}]], " ", "\[Sigma]"}]}], 
+        SqrtBox["2"]], ")"}], "+", "1"}], ")"}]}]}], 
+  TraditionalForm]], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"pde1", "/.", 
+   RowBox[{"f", "\[Rule]", "V"}]}], "//", "Simplify"}]], "Input"],
+
+Cell[BoxData["True"], "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+},
+WindowSize->{1301, 824},
+WindowMargins->{{156, Automatic}, {Automatic, 37}},
+PrintingCopies->1,
+PrintingPageRange->{32000, 32000},
+PrintingOptions->{"Magnification"->1.,
+"PaperOrientation"->"Portrait",
+"PaperSize"->{600.48, 780.48}},
+Magnification->1.5,
+FrontEndVersion->"8.0 for Microsoft Windows (64-bit) (February 23, 2011)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{
+ "Info3260169726-5396987"->{
+  Cell[16584, 609, 525, 7, 502, "Print",
+   CellTags->"Info3260169726-5396987"]},
+ "Info3260169726-1863836"->{
+  Cell[18798, 672, 300, 4, 202, "Print",
+   CellTags->"Info3260169726-1863836"]},
+ "Info3260169726-5767607"->{
+  Cell[19185, 684, 155, 2, 90, "Print",
+   CellTags->"Info3260169726-5767607"]},
+ "Info3260169726-1807366"->{
+  Cell[19428, 694, 121, 2, 90, "Print",
+   CellTags->"Info3260169726-1807366"]},
+ "Info3260169726-8451177"->{
+  Cell[19641, 704, 185, 2, 127, "Print",
+   CellTags->"Info3260169726-8451177"]},
+ "Info3260169726-8573689"->{
+  Cell[21393, 781, 62, 1, 105, "Print",
+   CellTags->"Info3260169726-8573689"],
+  Cell[21458, 784, 993, 28, 105, "Print",
+   CellTags->"Info3260169726-8573689"]},
+ "Info3260169727-9252446"->{
+  Cell[43024, 1669, 70, 1, 105, "Print",
+   CellTags->"Info3260169727-9252446"],
+  Cell[43097, 1672, 1566, 41, 105, "Print",
+   CellTags->"Info3260169727-9252446"]}
+ }
+*)
+(*CellTagsIndex
+CellTagsIndex->{
+ {"Info3260169726-5396987", 134000, 5049},
+ {"Info3260169726-1863836", 134111, 5052},
+ {"Info3260169726-5767607", 134222, 5055},
+ {"Info3260169726-1807366", 134332, 5058},
+ {"Info3260169726-8451177", 134442, 5061},
+ {"Info3260169726-8573689", 134553, 5064},
+ {"Info3260169727-9252446", 134745, 5069}
+ }
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[579, 22, 96, 4, 126, "Title"],
+Cell[678, 28, 151, 5, 74, "Subtitle"],
+Cell[832, 35, 34, 0, 74, "Subtitle"],
+Cell[869, 37, 41, 0, 42, "Subsubtitle"],
+Cell[913, 39, 241, 10, 270, "Subsubtitle"],
+Cell[CellGroupData[{
+Cell[1179, 53, 39, 0, 105, "Section"],
+Cell[1221, 55, 2710, 72, 251, "Text"],
+Cell[CellGroupData[{
+Cell[3956, 131, 93, 2, 54, "Subsection"],
+Cell[4052, 135, 408, 9, 67, "Text"],
+Cell[CellGroupData[{
+Cell[4485, 148, 39, 0, 38, "Subsubsection"],
+Cell[4527, 150, 128, 3, 41, "Text"],
+Cell[4658, 155, 123, 3, 43, "Input",
+ Evaluatable->False],
+Cell[4784, 160, 314, 5, 66, "Text"],
+Cell[5101, 167, 409, 12, 43, "Input",
+ Evaluatable->False],
+Cell[5513, 181, 568, 17, 66, "Text"],
+Cell[6084, 200, 1187, 43, 70, "Input",
+ Evaluatable->False],
+Cell[7274, 245, 185, 4, 66, "Text"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[7496, 254, 40, 0, 38, "Subsubsection"],
+Cell[7539, 256, 647, 14, 116, "Text"],
+Cell[8189, 272, 273, 11, 41, "Text"],
+Cell[CellGroupData[{
+Cell[8487, 287, 136, 4, 43, "Input"],
+Cell[8626, 293, 132, 4, 42, "Output"]
+}, Open  ]],
+Cell[8773, 300, 48, 0, 41, "Text"],
+Cell[CellGroupData[{
+Cell[8846, 304, 279, 8, 43, "Input"],
+Cell[9128, 314, 170, 5, 42, "Output"]
+}, Open  ]],
+Cell[9313, 322, 238, 7, 41, "Text"],
+Cell[9554, 331, 249, 6, 66, "Text"],
+Cell[CellGroupData[{
+Cell[9828, 341, 356, 10, 43, "Input"],
+Cell[10187, 353, 170, 5, 42, "Output"]
+}, Open  ]],
+Cell[10372, 361, 256, 9, 41, "Text"],
+Cell[10631, 372, 73, 0, 41, "Text"],
+Cell[CellGroupData[{
+Cell[10729, 376, 144, 4, 43, "Input"],
+Cell[10876, 382, 107, 3, 42, "Output"]
+}, Open  ]],
+Cell[10998, 388, 95, 2, 41, "Text"],
+Cell[CellGroupData[{
+Cell[11118, 394, 157, 4, 63, "Input"],
+Cell[11278, 400, 255, 8, 61, "Output"]
+}, Open  ]],
+Cell[11548, 411, 191, 4, 148, "Text"],
+Cell[11742, 417, 222, 4, 148, "Text"],
+Cell[CellGroupData[{
+Cell[11989, 425, 524, 18, 141, "Input"],
+Cell[12516, 445, 1181, 43, 103, "Output"]
+}, Open  ]],
+Cell[13712, 491, 241, 8, 109, "Text"],
+Cell[CellGroupData[{
+Cell[13978, 503, 421, 13, 144, "Input"],
+Cell[14402, 518, 1312, 47, 187, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[15787, 573, 35, 0, 58, "Section"],
+Cell[15825, 575, 184, 4, 102, "Input"],
+Cell[16012, 581, 435, 18, 112, "Text"],
+Cell[16450, 601, 54, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[16529, 606, 52, 1, 63, "Input"],
+Cell[16584, 609, 525, 7, 502, "Print",
+ CellTags->"Info3260169726-5396987"]
+}, Open  ]],
+Cell[17124, 619, 61, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[17210, 623, 338, 10, 141, "Input"],
+Cell[17551, 635, 137, 4, 61, "Output"]
+}, Open  ]],
+Cell[17703, 642, 66, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[17794, 646, 76, 1, 63, "Input"],
+Cell[17873, 649, 795, 13, 361, "Output"]
+}, Open  ]],
+Cell[18683, 665, 37, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[18745, 669, 50, 1, 63, "Input"],
+Cell[18798, 672, 300, 4, 202, "Print",
+ CellTags->"Info3260169726-1863836"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19135, 681, 47, 1, 63, "Input"],
+Cell[19185, 684, 155, 2, 90, "Print",
+ CellTags->"Info3260169726-5767607"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19377, 691, 48, 1, 63, "Input"],
+Cell[19428, 694, 121, 2, 90, "Print",
+ CellTags->"Info3260169726-1807366"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19586, 701, 52, 1, 63, "Input"],
+Cell[19641, 704, 185, 2, 127, "Print",
+ CellTags->"Info3260169726-8451177"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19875, 712, 98, 2, 58, "Section"],
+Cell[CellGroupData[{
+Cell[19998, 718, 37, 0, 102, "Subsection"],
+Cell[CellGroupData[{
+Cell[20060, 722, 605, 21, 124, "Subsubsection"],
+Cell[CellGroupData[{
+Cell[20690, 747, 260, 7, 102, "Input"],
+Cell[20953, 756, 132, 4, 105, "Output"]
+}, Open  ]],
+Cell[21100, 763, 199, 9, 72, "Text"],
+Cell[CellGroupData[{
+Cell[21324, 776, 44, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[21393, 781, 62, 1, 105, "Print",
+ CellTags->"Info3260169726-8573689"],
+Cell[21458, 784, 993, 28, 105, "Print",
+ CellTags->"Info3260169726-8573689"]
+}, Open  ]]
+}, Open  ]],
+Cell[22478, 816, 173, 6, 70, "Text"],
+Cell[CellGroupData[{
+Cell[22676, 826, 59, 1, 63, "Input"],
+Cell[22738, 829, 32, 0, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[22807, 834, 63, 1, 63, "Input"],
+Cell[22873, 837, 35, 0, 105, "Output"]
+}, Open  ]],
+Cell[22923, 840, 60, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[23008, 844, 189, 5, 102, "Input"],
+Cell[23200, 851, 107, 3, 105, "Output"],
+Cell[23310, 856, 1175, 42, 105, "Output"]
+}, Open  ]],
+Cell[24500, 901, 402, 15, 112, "Text"],
+Cell[CellGroupData[{
+Cell[24927, 920, 63, 1, 63, "Input"],
+Cell[24993, 923, 168, 4, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[25198, 932, 161, 4, 63, "Input"],
+Cell[25362, 938, 1312, 47, 105, "Output"]
+}, Open  ]],
+Cell[26689, 988, 131, 5, 70, "Text"],
+Cell[CellGroupData[{
+Cell[26845, 997, 208, 5, 102, "Input"],
+Cell[27056, 1004, 140, 4, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[27245, 1014, 39, 0, 57, "Subsubsection"],
+Cell[27287, 1016, 28, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[27340, 1020, 102, 3, 63, "Input"],
+Cell[27445, 1025, 29, 0, 61, "Output"]
+}, Open  ]],
+Cell[27489, 1028, 115, 3, 109, "Text"],
+Cell[27607, 1033, 58, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[27690, 1038, 203, 6, 63, "Input"],
+Cell[27896, 1046, 50, 1, 61, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[27983, 1052, 178, 6, 103, "Input"],
+Cell[28164, 1060, 119, 4, 85, "Output"]
+}, Open  ]],
+Cell[28298, 1067, 101, 5, 70, "Text"],
+Cell[CellGroupData[{
+Cell[28424, 1076, 146, 4, 63, "Input"],
+Cell[28573, 1082, 132, 4, 61, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[28742, 1091, 315, 10, 93, "Input"],
+Cell[29060, 1103, 97, 3, 61, "Output"]
+}, Open  ]],
+Cell[29172, 1109, 154, 6, 70, "Text"],
+Cell[29329, 1117, 81, 2, 63, "Input"],
+Cell[CellGroupData[{
+Cell[29435, 1123, 390, 12, 67, "Input"],
+Cell[29828, 1137, 313, 11, 66, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[30178, 1153, 130, 4, 63, "Input"],
+Cell[30311, 1159, 313, 11, 66, "Output"]
+}, Open  ]],
+Cell[30639, 1173, 54, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[30718, 1177, 131, 4, 63, "Input"],
+Cell[30852, 1183, 107, 3, 61, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[30996, 1191, 127, 4, 63, "Input"],
+Cell[31126, 1197, 1963, 70, 198, "Output"]
+}, Open  ]],
+Cell[33104, 1270, 47, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[33176, 1274, 199, 6, 63, "Input"],
+Cell[33378, 1282, 2419, 85, 249, "Output"]
+}, Open  ]],
+Cell[35812, 1370, 39, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[35876, 1374, 84, 2, 63, "Input"],
+Cell[35963, 1378, 425, 15, 69, "Output"]
+}, Open  ]],
+Cell[36403, 1396, 152, 7, 70, "Text"],
+Cell[CellGroupData[{
+Cell[36580, 1407, 191, 6, 63, "Input"],
+Cell[36774, 1415, 3011, 105, 307, "Output"]
+}, Open  ]],
+Cell[39800, 1523, 243, 8, 109, "Text"],
+Cell[CellGroupData[{
+Cell[40068, 1535, 160, 4, 63, "Input"],
+Cell[40231, 1541, 181, 6, 66, "Output"]
+}, Open  ]],
+Cell[40427, 1550, 130, 5, 70, "Text"],
+Cell[CellGroupData[{
+Cell[40582, 1559, 160, 4, 63, "Input"],
+Cell[40745, 1565, 35, 0, 61, "Output"]
+}, Open  ]],
+Cell[40795, 1568, 56, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[40876, 1572, 282, 8, 102, "Input"],
+Cell[41161, 1582, 121, 4, 61, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[41319, 1591, 237, 6, 102, "Input"],
+Cell[41559, 1599, 80, 2, 61, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[41676, 1606, 55, 1, 63, "Input"],
+Cell[41734, 1609, 109, 3, 66, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[41904, 1619, 57, 0, 102, "Subsection"],
+Cell[41964, 1621, 89, 2, 63, "Input"],
+Cell[CellGroupData[{
+Cell[42078, 1627, 303, 9, 63, "Input"],
+Cell[42384, 1638, 267, 9, 105, "Output"]
+}, Open  ]],
+Cell[42666, 1650, 256, 10, 111, "Text"],
+Cell[CellGroupData[{
+Cell[42947, 1664, 52, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[43024, 1669, 70, 1, 105, "Print",
+ CellTags->"Info3260169727-9252446"],
+Cell[43097, 1672, 1566, 41, 105, "Print",
+ CellTags->"Info3260169727-9252446"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[44712, 1719, 303, 9, 63, "Input"],
+Cell[45018, 1730, 267, 9, 105, "Output"]
+}, Open  ]],
+Cell[45300, 1742, 339, 14, 112, "Text"],
+Cell[CellGroupData[{
+Cell[45664, 1760, 118, 3, 63, "Input"],
+Cell[45785, 1765, 879, 30, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[46701, 1800, 242, 8, 63, "Input"],
+Cell[46946, 1810, 6084, 202, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[53079, 2018, 96, 2, 63, "Subsection"],
+Cell[CellGroupData[{
+Cell[53200, 2024, 389, 12, 141, "Input"],
+Cell[53592, 2038, 155, 5, 105, "Output"],
+Cell[53750, 2045, 242, 8, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[54029, 2058, 38, 0, 91, "Subsubsection"],
+Cell[CellGroupData[{
+Cell[54092, 2062, 110, 3, 63, "Input"],
+Cell[54205, 2067, 312, 11, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[54554, 2083, 117, 3, 63, "Input"],
+Cell[54674, 2088, 986, 34, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[55709, 2128, 39, 0, 91, "Subsubsection"],
+Cell[CellGroupData[{
+Cell[55773, 2132, 411, 13, 64, "Input"],
+Cell[56187, 2147, 518, 18, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[56742, 2170, 93, 2, 63, "Input"],
+Cell[56838, 2174, 767, 23, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[57654, 2203, 38, 0, 91, "Subsubsection"],
+Cell[57695, 2205, 56, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[57776, 2209, 774, 26, 103, "Input"],
+Cell[58553, 2237, 748, 25, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[59338, 2267, 123, 4, 63, "Input"],
+Cell[59464, 2273, 83, 2, 105, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[59620, 2283, 40, 0, 58, "Section"],
+Cell[CellGroupData[{
+Cell[59685, 2287, 76, 1, 102, "Subsection"],
+Cell[CellGroupData[{
+Cell[59786, 2292, 38, 0, 91, "Subsubsection"],
+Cell[59827, 2294, 396, 14, 109, "Text"],
+Cell[CellGroupData[{
+Cell[60248, 2312, 368, 11, 102, "Input"],
+Cell[60619, 2325, 288, 10, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[60956, 2341, 165, 6, 57, "Subsubsection"],
+Cell[61124, 2349, 323, 9, 109, "Text"],
+Cell[CellGroupData[{
+Cell[61472, 2362, 109, 3, 63, "Input"],
+Cell[61584, 2367, 556, 20, 64, "Output"]
+}, Open  ]],
+Cell[62155, 2390, 397, 15, 70, "Text"],
+Cell[62555, 2407, 1389, 46, 78, "Text"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[63981, 2458, 73, 0, 91, "Subsubsection"],
+Cell[64057, 2460, 446, 16, 78, "Text"],
+Cell[CellGroupData[{
+Cell[64528, 2480, 334, 10, 73, "Input"],
+Cell[64865, 2492, 1965, 62, 105, "Output"]
+}, Open  ]],
+Cell[66845, 2557, 58, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[66928, 2562, 191, 6, 63, "Input"],
+Cell[67122, 2570, 1965, 62, 105, "Output"]
+}, Open  ]],
+Cell[69102, 2635, 483, 16, 78, "Text"],
+Cell[CellGroupData[{
+Cell[69610, 2655, 267, 9, 63, "Input"],
+Cell[69880, 2666, 9859, 294, 105, "Output"]
+}, Open  ]],
+Cell[79754, 2963, 96, 2, 70, "Text"],
+Cell[CellGroupData[{
+Cell[79875, 2969, 505, 16, 114, "Input"],
+Cell[80383, 2987, 288, 10, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[80720, 3003, 73, 0, 57, "Subsubsection"],
+Cell[80796, 3005, 58, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[80879, 3009, 366, 11, 103, "Input"],
+Cell[81248, 3022, 416, 14, 63, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[81701, 3041, 154, 4, 63, "Input"],
+Cell[81858, 3047, 288, 10, 63, "Output"]
+}, Open  ]],
+Cell[82161, 3060, 490, 16, 78, "Text"],
+Cell[82654, 3078, 58, 1, 63, "Input"],
+Cell[CellGroupData[{
+Cell[82737, 3083, 397, 13, 102, "Input"],
+Cell[83137, 3098, 1012, 36, 114, "Output"]
+}, Open  ]],
+Cell[84164, 3137, 67, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[84256, 3141, 535, 17, 142, "Input"],
+Cell[84794, 3160, 448, 16, 69, "Output"]
+}, Open  ]],
+Cell[85257, 3179, 129, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[85411, 3186, 393, 12, 73, "Input"],
+Cell[85807, 3200, 1020, 34, 144, "Output"]
+}, Open  ]],
+Cell[86842, 3237, 208, 10, 72, "Text"],
+Cell[CellGroupData[{
+Cell[87075, 3251, 383, 11, 102, "Input"],
+Cell[87461, 3264, 760, 25, 105, "Output"]
+}, Open  ]],
+Cell[88236, 3292, 57, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[88318, 3296, 180, 5, 64, "Input"],
+Cell[88501, 3303, 399, 14, 63, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[88949, 3323, 35, 0, 91, "Subsubsection"],
+Cell[CellGroupData[{
+Cell[89009, 3327, 366, 11, 103, "Input"],
+Cell[89378, 3340, 416, 14, 105, "Output"]
+}, Open  ]],
+Cell[89809, 3357, 127, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[89961, 3364, 343, 11, 93, "Input"],
+Cell[90307, 3377, 840, 28, 105, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[91208, 3412, 69, 1, 102, "Subsection"],
+Cell[CellGroupData[{
+Cell[91302, 3417, 144, 4, 63, "Input"],
+Cell[91449, 3423, 401, 13, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[91887, 3441, 161, 5, 63, "Input"],
+Cell[92051, 3448, 203, 7, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[92291, 3460, 138, 4, 63, "Input"],
+Cell[92432, 3466, 323, 11, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[92792, 3482, 236, 7, 63, "Input"],
+Cell[93031, 3491, 884, 28, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[93952, 3524, 199, 6, 63, "Input"],
+Cell[94154, 3532, 371, 12, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[94574, 3550, 92, 1, 63, "Subsection"],
+Cell[94669, 3553, 203, 4, 63, "Input"],
+Cell[94875, 3559, 36, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[94936, 3563, 221, 7, 63, "Input"],
+Cell[95160, 3572, 226, 7, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[95423, 3584, 138, 4, 63, "Input"],
+Cell[95564, 3590, 148, 5, 105, "Output"]
+}, Open  ]],
+Cell[95727, 3598, 81, 2, 70, "Text"],
+Cell[CellGroupData[{
+Cell[95833, 3604, 181, 5, 63, "Input"],
+Cell[96017, 3611, 95, 2, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[96149, 3618, 144, 4, 63, "Input"],
+Cell[96296, 3624, 51, 1, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[96384, 3630, 173, 4, 63, "Input"],
+Cell[96560, 3636, 143, 4, 105, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[96740, 3645, 158, 4, 63, "Input"],
+Cell[96901, 3651, 148, 5, 105, "Output"]
+}, Open  ]],
+Cell[97064, 3659, 41, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[97130, 3663, 193, 5, 63, "Input"],
+Cell[97326, 3670, 233, 7, 105, "Output"]
+}, Open  ]],
+Cell[97574, 3680, 64, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[97663, 3684, 249, 8, 63, "Input"],
+Cell[97915, 3694, 466, 15, 105, "Output"]
+}, Open  ]],
+Cell[98396, 3712, 51, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[98472, 3716, 88, 2, 63, "Input"],
+Cell[98563, 3720, 203, 6, 105, "Output"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[98815, 3732, 53, 0, 63, "Subsection"],
+Cell[98871, 3734, 303, 11, 70, "Text"],
+Cell[99177, 3747, 81, 2, 63, "Input"],
+Cell[99261, 3751, 165, 4, 102, "Input"],
+Cell[99429, 3757, 57, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[99511, 3761, 249, 8, 63, "Input"],
+Cell[99763, 3771, 128, 4, 61, "Output"]
+}, Open  ]],
+Cell[99906, 3778, 45, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[99976, 3782, 426, 13, 93, "Input"],
+Cell[100405, 3797, 412, 13, 93, "Output"]
+}, Open  ]],
+Cell[100832, 3813, 21, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[100878, 3817, 361, 11, 93, "Input"],
+Cell[101242, 3830, 170, 5, 64, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[101449, 3840, 161, 5, 63, "Input"],
+Cell[101613, 3847, 1104, 34, 168, "Output"]
+}, Open  ]],
+Cell[102732, 3884, 343, 14, 70, "Text"],
+Cell[CellGroupData[{
+Cell[103100, 3902, 302, 10, 63, "Input"],
+Cell[103405, 3914, 31, 0, 61, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[103497, 3921, 112, 3, 58, "Section"],
+Cell[103612, 3926, 113, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[103750, 3933, 27, 0, 102, "Subsection"],
+Cell[103780, 3935, 154, 4, 63, "Input"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[103971, 3944, 38, 0, 63, "Subsection"],
+Cell[104012, 3946, 172, 5, 109, "Text"],
+Cell[104187, 3953, 131, 3, 63, "Input"],
+Cell[104321, 3958, 74, 0, 70, "Text"],
+Cell[104398, 3960, 634, 17, 88, "DisplayFormula"],
+Cell[CellGroupData[{
+Cell[105057, 3981, 296, 8, 102, "Input"],
+Cell[105356, 3991, 210, 6, 61, "Output"],
+Cell[105569, 3999, 95, 2, 61, "Output"]
+}, Open  ]],
+Cell[105679, 4004, 232, 8, 70, "Text"],
+Cell[CellGroupData[{
+Cell[105936, 4016, 166, 5, 63, "Input"],
+Cell[106105, 4023, 1464, 51, 187, "Output"]
+}, Open  ]],
+Cell[107584, 4077, 306, 11, 109, "Text"],
+Cell[CellGroupData[{
+Cell[107915, 4092, 249, 8, 63, "Input"],
+Cell[108167, 4102, 218, 7, 61, "Output"]
+}, Open  ]],
+Cell[108400, 4112, 102, 2, 70, "Text"],
+Cell[108505, 4116, 650, 20, 52, "DisplayFormula"],
+Cell[CellGroupData[{
+Cell[109180, 4140, 529, 16, 141, "Input"],
+Cell[109712, 4158, 465, 14, 61, "Output"]
+}, Open  ]],
+Cell[110192, 4175, 211, 4, 148, "Text"],
+Cell[CellGroupData[{
+Cell[110428, 4183, 551, 15, 219, "Input"],
+Cell[110982, 4200, 2145, 71, 252, "Output"]
+}, Open  ]],
+Cell[113142, 4274, 92, 2, 70, "Text"],
+Cell[CellGroupData[{
+Cell[113259, 4280, 345, 10, 102, "Input"],
+Cell[113607, 4292, 1078, 36, 103, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[114722, 4333, 71, 0, 91, "Subsubsection"],
+Cell[114796, 4335, 154, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[114975, 4342, 407, 12, 141, "Input"],
+Cell[115385, 4356, 997, 34, 144, "Output"]
+}, Open  ]],
+Cell[116397, 4393, 179, 6, 70, "Text"],
+Cell[CellGroupData[{
+Cell[116601, 4403, 131, 3, 63, "Input"],
+Cell[116735, 4408, 1464, 51, 187, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[118236, 4464, 91, 2, 63, "Input"],
+Cell[118330, 4468, 1340, 46, 142, "Output"]
+}, Open  ]],
+Cell[119685, 4517, 41, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[119751, 4521, 179, 5, 102, "Input"],
+Cell[119933, 4528, 31, 0, 61, "Output"]
+}, Open  ]],
+Cell[119979, 4531, 168, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[120172, 4538, 254, 7, 102, "Input"],
+Cell[120429, 4547, 1536, 56, 171, "Output"]
+}, Open  ]],
+Cell[121980, 4606, 173, 5, 109, "Text"],
+Cell[CellGroupData[{
+Cell[122178, 4615, 140, 4, 63, "Input"],
+Cell[122321, 4621, 31, 0, 61, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[122413, 4628, 39, 0, 102, "Subsection"],
+Cell[122455, 4630, 515, 12, 226, "Text"],
+Cell[CellGroupData[{
+Cell[122995, 4646, 197, 5, 63, "Input"],
+Cell[123195, 4653, 248, 7, 105, "Output"]
+}, Open  ]],
+Cell[123458, 4663, 130, 3, 109, "Text"],
+Cell[CellGroupData[{
+Cell[123613, 4670, 260, 8, 63, "Input"],
+Cell[123876, 4680, 448, 12, 105, "Output"]
+}, Open  ]],
+Cell[124339, 4695, 209, 4, 148, "Text"],
+Cell[CellGroupData[{
+Cell[124573, 4703, 95, 2, 63, "Input"],
+Cell[124671, 4707, 510, 14, 105, "Output"]
+}, Open  ]],
+Cell[125196, 4724, 52, 0, 70, "Text"],
+Cell[CellGroupData[{
+Cell[125273, 4728, 327, 10, 63, "Input"],
+Cell[125603, 4740, 1811, 60, 105, "Output"]
+}, Open  ]],
+Cell[127429, 4803, 195, 5, 41, "Text"],
+Cell[CellGroupData[{
+Cell[127649, 4812, 284, 9, 43, "Input"],
+Cell[127936, 4823, 1126, 38, 48, "Output"]
+}, Open  ]],
+Cell[129077, 4864, 88, 2, 41, "Text"],
+Cell[CellGroupData[{
+Cell[129190, 4870, 145, 4, 43, "Input"],
+Cell[129338, 4876, 31, 0, 42, "Output"]
+}, Open  ]],
+Cell[129384, 4879, 153, 4, 43, "Input"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[129574, 4888, 95, 2, 54, "Subsection"],
+Cell[129672, 4892, 294, 12, 41, "Text"],
+Cell[129969, 4906, 1534, 47, 176, "Input"],
+Cell[CellGroupData[{
+Cell[131528, 4957, 116, 3, 43, "Input"],
+Cell[131647, 4962, 1628, 55, 138, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[133312, 5022, 114, 3, 43, "Input"],
+Cell[133429, 5027, 31, 0, 42, "Output"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)
+

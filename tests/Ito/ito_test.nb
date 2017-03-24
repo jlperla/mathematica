@@ -1,0 +1,154 @@
+(* Content-type: application/mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 7.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       145,          7]
+NotebookDataLength[      4560,        145]
+NotebookOptionsPosition[      4117,        126]
+NotebookOutlinePosition[      4499,        142]
+CellTagsIndexPosition[      4456,        139]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", " ", 
+   RowBox[{"Package", " ", "with", " ", 
+    RowBox[{"Ito", "'"}], "s", " ", "Lemma"}], "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{"<<", " ", "ItosLemma`"}], "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+      "TimeSymbol", ",", "TimeIncrement", ",", "BrownianIncrement", ",", 
+       "CorrelationSymbol", ",", "DriftSymbol", ",", "DiffusionSymbol"}], 
+      "}"}], "=", 
+     RowBox[{"{", 
+      RowBox[{
+      "t", ",", "dt", ",", "dB", ",", "\[Rho]", ",", "\[Mu]", ",", 
+       "\[Sigma]"}], "}"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{"dx", " ", "=", " ", 
+    RowBox[{"ItoMake", "[", 
+     RowBox[{
+      RowBox[{"x", "[", "t", "]"}], ",", " ", "\[Mu]", " ", ",", " ", 
+      "\[Sigma]"}], "]"}]}], " ", 
+   RowBox[{"(*", " ", 
+    RowBox[{"Makes", " ", "a", " ", "diffusion"}], " ", "*)"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"y", " ", "=", " ", 
+     RowBox[{"f", "[", 
+      RowBox[{
+       RowBox[{"x", "[", "t", "]"}], ",", " ", "t"}], "]"}]}], ";"}], 
+   "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"dy", " ", "=", " ", 
+     RowBox[{"ItoD", "[", "y", "]"}]}], ";"}], "\[IndentingNewLine]", 
+   RowBox[{"Drift", "[", "dy", "]"}], "\[IndentingNewLine]", 
+   RowBox[{"Diffusion", "[", "dy", "]"}], "\[IndentingNewLine]"}]}]], "Input",
+ CellChangeTimes->{{3.516535417622425*^9, 3.516535506139488*^9}, {
+  3.516535834339932*^9, 3.516535917675278*^9}, {3.5165359580278344`*^9, 
+  3.5165359592602367`*^9}, {3.5165360248895516`*^9, 3.516536042002782*^9}, {
+  3.5165363101573443`*^9, 3.516536345273006*^9}, {3.516536533866346*^9, 
+  3.5165366805458*^9}, {3.516536766564351*^9, 3.5165367753159666`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dt", " ", "\[Mu]"}], "+", 
+  RowBox[{"\[Sigma]", " ", 
+   SubscriptBox["dB", "1"]}]}]], "Output",
+ CellChangeTimes->{
+  3.516536345663007*^9, {3.516536534973948*^9, 3.516536550339975*^9}, {
+   3.5165365918360476`*^9, 3.5165366496497493`*^9}, 3.5165366808578005`*^9, 
+   3.5165367671103525`*^9, 3.5165368062820215`*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SuperscriptBox["f", 
+    TagBox[
+     RowBox[{"(", 
+      RowBox[{"0", ",", "1"}], ")"}],
+     Derivative],
+    MultilineFunction->None], "[", 
+   RowBox[{"x", ",", "t"}], "]"}], "+", 
+  RowBox[{"\[Mu]", " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"1", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "t"}], "]"}]}], "+", 
+  RowBox[{
+   FractionBox["1", "2"], " ", 
+   SuperscriptBox["\[Sigma]", "2"], " ", 
+   RowBox[{
+    SuperscriptBox["f", 
+     TagBox[
+      RowBox[{"(", 
+       RowBox[{"2", ",", "0"}], ")"}],
+      Derivative],
+     MultilineFunction->None], "[", 
+    RowBox[{"x", ",", "t"}], "]"}]}]}]], "Output",
+ CellChangeTimes->{
+  3.516536345663007*^9, {3.516536534973948*^9, 3.516536550339975*^9}, {
+   3.5165365918360476`*^9, 3.5165366496497493`*^9}, 3.5165366808578005`*^9, 
+   3.5165367671103525`*^9, 3.5165368062820215`*^9}],
+
+Cell[BoxData[
+ RowBox[{"\[Sigma]", " ", 
+  RowBox[{
+   SuperscriptBox["f", 
+    TagBox[
+     RowBox[{"(", 
+      RowBox[{"1", ",", "0"}], ")"}],
+     Derivative],
+    MultilineFunction->None], "[", 
+   RowBox[{"x", ",", "t"}], "]"}]}]], "Output",
+ CellChangeTimes->{
+  3.516536345663007*^9, {3.516536534973948*^9, 3.516536550339975*^9}, {
+   3.5165365918360476`*^9, 3.5165366496497493`*^9}, 3.5165366808578005`*^9, 
+   3.5165367671103525`*^9, 3.5165368062820215`*^9}]
+}, Open  ]]
+},
+WindowSize->{961, 924},
+WindowMargins->{{Automatic, 154}, {-3, Automatic}},
+Magnification->1.2000000476837158`,
+FrontEndVersion->"8.0 for Microsoft Windows (64-bit) (February 23, 2011)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[567, 22, 1727, 41, 215, "Input"],
+Cell[2297, 65, 353, 8, 35, "Output"],
+Cell[2653, 75, 978, 33, 52, "Output"],
+Cell[3634, 110, 467, 13, 35, "Output"]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)
